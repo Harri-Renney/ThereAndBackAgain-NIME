@@ -229,7 +229,8 @@ public:
 				if (strstr(platform.getInfo<CL_PLATFORM_NAME>().c_str(), "AMD"))
 				{
 					std::cout << "\tAMD Specific:" << std::endl;
-					std::cout << "\t\tAMD Wavefront size: " << device.getInfo<CL_DEVICE_WAVEFRONT_WIDTH_AMD>() << std::endl;
+					//If AMD//
+					//std::cout << "\t\tAMD Wavefront size: " << device.getInfo<CL_DEVICE_WAVEFRONT_WIDTH_AMD>() << std::endl;
 				}
 			}
 			std::cout << std::endl;

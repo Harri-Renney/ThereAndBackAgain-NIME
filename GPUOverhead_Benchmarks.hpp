@@ -1,8 +1,8 @@
 #ifndef GPUOVERHEAD_BENCHMARKS_HPP
 #define GPUOVERHEAD_BENCHMARKS_HPP
 
-#define CL_HPP_TARGET_OPENCL_VERSION 200
-//#define CL_HPP_TARGET_OPENCL_VERSION 120
+//#define CL_HPP_TARGET_OPENCL_VERSION 200
+#define CL_HPP_TARGET_OPENCL_VERSION 120
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #include <CL/cl2.hpp>
 //#include <CL/cl.hpp>
@@ -12,14 +12,15 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include <map>
 
 //OpenGL API Dependencies//
 //#define GLFW_EXPOSE_NATIVE_WIN32
 //#define GLFW_EXPOSE_NATIVE_WGL
 #include <windows.h>
-#include <glad\glad.h> 
-#include <GLFW\glfw3.h>
+//#include <glad\glad.h> 
+//#include <GLFW\glfw3.h>
 
 #include "OpenCL_Wrapper.h"
 #include "CUDA_Wrapper.hpp"
@@ -32,12 +33,13 @@ private:
 	uint32_t bufferSize_ = 1024;
 
 	OpenCL_Wrapper openCL;
+	CUDA_Wrapper cuda_;
 	cl::NDRange globalWorkspace_;
 	cl::NDRange localWorkspace_;
 
 	Benchmarker benchmarker_;
 public:
-	GPUOverhead_Benchmarks(uint32_t aPlatform, uint32_t aDevice) : openCL(aPlatform, aDevice)
+	GPUOverhead_Benchmarks(uint32_t aPlatform, uint32_t aDevice) : openCL(aPlatform, aDevice), cuda_()
 	{
 	}
 

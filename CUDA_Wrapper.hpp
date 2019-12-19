@@ -5,11 +5,48 @@
 #include <helper_cuda.h>
 #include <cuda.h>
 
+namespace CUDA_Kernels
+{
+	void nullKernelExecute();
+	void copyBufferExecute(size_t aN, float* srcBuffer, float* dstBuffer);
+}
+
 class CUDA_Wrapper
 {
 private:
+	
+	
 public:
+	void nullkernel()
+	{
+		CUDA_Kernels::nullKernelExecute();
+	}
+	void copyBufferKernel()
+	{
+		uint32_t bufferSize_ = 32;
 
+		float* srcMemoryBuffer = new float[bufferSize_];
+		for (size_t i = 0; i != bufferSize_; ++i)
+			srcMemoryBuffer[i] = 4.0;
+		float* dstMemoryBuffer = new float[bufferSize_];
+		for (size_t i = 0; i != bufferSize_; ++i)
+			dstMemoryBuffer[i] = 0.0;
+
+		for (size_t i = 0; i != bufferSize_; ++i)
+		{
+			printf("%d: %f\n", i, dstMemoryBuffer[i]);
+		}
+
+		CUDA_Kernels::copyBufferExecute(bufferSize_, srcMemoryBuffer, dstMemoryBuffer);
+
+		for (size_t i = 0; i != bufferSize_; ++i)
+		{
+			printf("%d: %f\n", i, dstMemoryBuffer[i]);
+		}
+
+		delete(srcMemoryBuffer);
+		delete(dstMemoryBuffer);
+	}
 	static void printAvailableDevices()
 	{
 		printf(
