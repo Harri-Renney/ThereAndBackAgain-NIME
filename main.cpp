@@ -17,6 +17,10 @@ int main()
 	clBenchmark.cl_000_nullKernel(10, true);
 	clBenchmark.cl_001_CPUtoGPU(10, true);
 	clBenchmark.cl_002_GPUtoCPU(10, true);
+	clBenchmark.cl_003_CPUtoGPUtoCPU(10, true);
+	clBenchmark.cl_004_pinnedmemory(10, true);
+	clBenchmark.cl_005_cpymemory(10, true);
+	clBenchmark.cl_006_cpymemorykernel(10, true);
 	
 	//clBenchmark.runUnidirectionalBenchmarks(10);
 	//clBenchmark.runBidirectionalBenchmarks(100);
@@ -33,14 +37,14 @@ int main()
 	cudaDriverGetVersion(&cudaDriverVersion);
 	std::cout << "CUDA runtime version: " << cudaRuntimeVersion << std::endl;
 	std::cout << "CUDA driver version: " << cudaDriverVersion << std::endl;
-	if(cudaRuntimeGetVersion == 0 || cudaDriverVersion ==0)
+	if(cudaRuntimeGetVersion == 0 || cudaDriverVersion == 0)
 	{
 		std::cout << "Necessary CUDA runtime or driver version missing" << std::endl;
 		isCUDA = false;
 	}
 
 	int numCudaDevices = CUDA_Wrapper::isCudaAvailable();
-	std::cout << "Number of avilable CUDA devices: " << numCudaDevices << std::endl;
+	std::cout << "Number of available CUDA devices: " << numCudaDevices << std::endl;
 	if(numCudaDevices == 0)
 	{
 		std::cout << "A necessary CUDA device is not detected" << std::endl;
