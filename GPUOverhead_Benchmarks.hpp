@@ -29,8 +29,11 @@
 class GPUOverhead_Benchmarks
 {
 private:
+	
+	typedef float datatype;
 	uint32_t sampleRate_ = 44100;
 	uint32_t bufferSize_ = 1024;
+	uint32_t bufferLength_ = bufferSize_ / sizeof(datatype);
 
 	OpenCL_Wrapper openCL;
 	CUDA_Wrapper cuda_;
@@ -39,99 +42,181 @@ private:
 
 	Benchmarker benchmarker_;
 public:
+	static const uint32_t GIGA_BYTE = 1024 * 1024 * 1024;
+	static const uint32_t MEGA_BYTE = 1024 * 1024;
+	static const uint32_t KILO_BYTE = 1024;
 	GPUOverhead_Benchmarks(uint32_t aPlatform, uint32_t aDevice) : openCL(aPlatform, aDevice), cuda_()
 	{
 	}
 
-	void nullKernel(size_t aN)
+	void cl_000_nullKernel(size_t aN)
 	{
-		std::cout << "Null kernel" << std::endl;
-
+		//Execute and average//
+		std::cout << "Executing test: cl_000_nullKernel" << std::endl;
 		openCL.setWorkspaceSize(1024, 32);
 		for (uint32_t i = 0; i != aN; ++i)
 		{
-			benchmarker_.startTimer("nullKernel");
-			openCL.enqueueKernel("nullKernel");
+			benchmarker_.startTimer("cl_000_nullKernel");
+			openCL.enqueueKernel("cl_000_nullKernel");
 			openCL.waitKernel();
-			benchmarker_.pauseTimer("nullKernel");
+			benchmarker_.pauseTimer("cl_000_nullKernel");
 		}
-		benchmarker_.elapsedTimer("nullKernel");
+		benchmarker_.elapsedTimer("cl_000_nullKernel");
 
-		std::cout << "Null kernel successful? " << true << std::endl << std::endl;
+		bool isSuccessful = true;
+		std::cout << "Null kernel successful? " << isSuccessful << std::endl << std::endl;
 	}
-
-	void writeToGPUMapped(size_t aN)
-	{
-		//Write to buffer using OpenCL enqueueMapBuffer()//
-		openCL.createBuffer("writeDstBuffer", CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
-
-		char* memoryBuffer = new char[bufferSize_];
-		memset(memoryBuffer, '1', bufferSize_);
-
-		char* memoryBufferCheck = new char[bufferSize_];
-		memset(memoryBufferCheck, '1', bufferSize_);
-
-
-		auto mappedMemory = openCL.pinMappedMemory("writeDstBuffer", bufferSize_);
-
-		std::cout << "Write to buffer using enqueueMapBuffer()" << std::endl;
-		for (uint32_t i = 0; i != aN; ++i)
-		{
-			benchmarker_.startTimer("writeToGPUMapped");
-			memcpy(memoryBuffer, mappedMemory, bufferSize_);
-			benchmarker_.pauseTimer("writeToGPUMapped");
-		}
-		benchmarker_.elapsedTimer("writeToGPUMapped");
-
-		openCL.deleteBuffer("writeDstBuffer");
-
-		delete memoryBuffer;
-		delete memoryBufferCheck;
-
-		//memset(memoryBufferCheck, '1', bufferSize_);
-	}
-	void writeToGPU(size_t aN)
+	void cl_001_CPUtoGPU(size_t aN, bool isWarmup)
 	{	
-		//Write to buffer using OpenCL enqueueWriteBuffer()//
-		openCL.createBuffer("writeDstBuffer", CL_MEM_WRITE_ONLY, bufferSize_);
+		//Test preperation//
+		openCL.createBuffer("deviceBuffer", CL_MEM_WRITE_ONLY, bufferSize_);
 
-		char* memoryBuffer = new char[bufferSize_];
+		datatype* memoryBuffer = new datatype[bufferSize_];
 		memset(memoryBuffer, '1', bufferSize_);
 
-		char* memoryBufferCheck = new char[bufferSize_];
+		datatype* memoryBufferCheck = new datatype[bufferSize_];
 		memset(memoryBufferCheck, '1', bufferSize_);
 
-		std::cout << "Write to buffer using enqueueWriteBuffer()" << std::endl;
+		//Execute and average//
+		std::cout << "Executing test: cl_001_CPUtoGPU" << std::endl;
+		if (isWarmup)
+		{
+			openCL.writeBuffer("deviceBuffer", bufferSize_, memoryBuffer);
+			openCL.waitKernel();
+		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			//std::cout << "Write to buffer using enqueueWriteBuffer()" << std::endl;
-			benchmarker_.startTimer("writeToGPU");
-			openCL.writeBuffer("writeDstBuffer", bufferSize_, memoryBuffer);
+			benchmarker_.startTimer("cl_001_CPUtoGPU");
+			openCL.writeBuffer("deviceBuffer", bufferSize_, memoryBuffer);
 			openCL.waitKernel();
 
-			benchmarker_.pauseTimer("writeToGPU");
-			//benchmarker_.endTimer();
-			//benchmarker_.elapsedTimer();
-
-			bool isSuccessful = true;
-			openCL.readBuffer("writeDstBuffer", bufferSize_, memoryBufferCheck);
-			for (uint32_t i = 0; i != bufferSize_; ++i)
-			{
-				if (memoryBuffer[i] != memoryBufferCheck[i])
-				{
-					isSuccessful = false;
-					break;
-				}
-			}
-			//std::cout << "Write buffer successful? " << isSuccessful << std::endl << std::endl;
+			benchmarker_.pauseTimer("cl_001_CPUtoGPU");
 		}
-		benchmarker_.elapsedTimer("writeToGPU");
+		benchmarker_.elapsedTimer("cl_001_CPUtoGPU");
 
-		openCL.deleteBuffer("writeDstBuffer");
+		bool isSuccessful = true;
+		openCL.readBuffer("deviceBuffer", bufferSize_, memoryBufferCheck);
+		for (uint32_t i = 0; i != bufferSize_; ++i)
+		{
+			if (memoryBuffer[i] != memoryBufferCheck[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cl_001_CPUtoGPU successful: " << isSuccessful << std::endl << std::endl;
 
+		openCL.deleteBuffer("deviceBuffer");
 		delete memoryBuffer;
 		delete memoryBufferCheck;
 	}
+
+	void cl_002_GPUtoCPU(size_t aN, bool isWarmup)
+	{
+		//Test preperation//
+		datatype* hostBuffer = new datatype[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			hostBuffer[i] = 42.0;
+
+		openCL.createBuffer("deviceBuffer", CL_MEM_READ_WRITE, bufferSize_);
+		openCL.writeBuffer("deviceBuffer", bufferSize_, hostBuffer);
+
+		datatype* checkBuffer = new datatype[bufferLength_];
+
+		//Execute and average//
+		std::cout << "Executing test: cl_002_GPUtoCPU" << std::endl;
+		if (isWarmup)
+			openCL.readBuffer("deviceBuffer", bufferSize_, checkBuffer);
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cl_002_GPUtoCPU");
+			openCL.readBuffer("deviceBuffer", bufferSize_, checkBuffer);
+			//cudaMemcpyAsync(deviceBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			benchmarker_.pauseTimer("cl_002_GPUtoCPU");
+		}
+		benchmarker_.elapsedTimer("cl_002_GPUtoCPU");
+
+		//Check contents//
+		bool isSuccessful = true;
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			if (checkBuffer[i] != hostBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cl_002_GPUtoCPU successful: " << isSuccessful << std::endl << std::endl;
+
+		//Cleanup//
+		openCL.deleteBuffer("deviceBuffer");
+		delete(hostBuffer);
+	}
+	//void cl_003_CPUtoGPUtoCPU(size_t aN, bool isWarmup)
+	//{
+	//	//Test preperation//
+
+	//	//Execute and average//
+	//	std::cout << "Executing test: cl_003_CPUtoGPUtoCPU" << std::endl;
+	//	if (isWarmup)
+	//		cudaMemcpy(deviceBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+	//	for (uint32_t i = 0; i != aN; ++i)
+	//	{
+	//		benchmarker_.startTimer("cl_003_CPUtoGPUtoCPU");
+	//		cudaMemcpy(deviceBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+	//		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+	//		//cudaMemcpyAsync(deviceBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+	//		benchmarker_.pauseTimer("cl_003_CPUtoGPUtoCPU");
+	//	}
+	//	benchmarker_.elapsedTimer("cl_003_CPUtoGPUtoCPU");
+
+	//	//Check contents//
+	//	bool isSuccessful = true;
+	//	for (uint32_t i = 0; i != bufferLength_; ++i)
+	//	{
+	//		if (checkBuffer[i] != hostBuffer[i])
+	//		{
+	//			isSuccessful = false;
+	//			break;
+	//		}
+	//	}
+	//	std::cout << "cl_003_CPUtoGPUtoCPU successful: " << isSuccessful << std::endl << std::endl;
+
+	//	//Cleanup//
+	//	delete(hostBuffer);
+	//}
+
+	//void writeToGPUMapped(size_t aN)
+	//{
+	//	//Write to buffer using OpenCL enqueueMapBuffer()//
+	//	openCL.createBuffer("writeDstBuffer", CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
+
+	//	char* memoryBuffer = new char[bufferSize_];
+	//	memset(memoryBuffer, '1', bufferSize_);
+
+	//	char* memoryBufferCheck = new char[bufferSize_];
+	//	memset(memoryBufferCheck, '1', bufferSize_);
+
+
+	//	auto mappedMemory = openCL.pinMappedMemory("writeDstBuffer", bufferSize_);
+
+	//	std::cout << "Write to buffer using enqueueMapBuffer()" << std::endl;
+	//	for (uint32_t i = 0; i != aN; ++i)
+	//	{
+	//		benchmarker_.startTimer("writeToGPUMapped");
+	//		memcpy(memoryBuffer, mappedMemory, bufferSize_);
+	//		benchmarker_.pauseTimer("writeToGPUMapped");
+	//	}
+	//	benchmarker_.elapsedTimer("writeToGPUMapped");
+
+	//	openCL.deleteBuffer("writeDstBuffer");
+
+	//	delete memoryBuffer;
+	//	delete memoryBufferCheck;
+
+	//	//memset(memoryBufferCheck, '1', bufferSize_);
+	//}
 
 	void copyBuffer(size_t aN)
 	{
@@ -156,7 +241,7 @@ public:
 		{
 			benchmarker_.startTimer("copyBuffer");
 			openCL.enqueueCopyBuffer("writeSrcBuffer", "writeDstBuffer", bufferSize_);
-			openCL.waitKernel();
+			//openCL.waitKernel();
 			benchmarker_.pauseTimer("copyBuffer");
 		}
 		benchmarker_.elapsedTimer("copyBuffer");
@@ -180,6 +265,7 @@ public:
 		delete srcMemoryBuffer;
 		delete dstMemoryBuffer;
 	}
+	//cl_006_cpymemorykernel
 	void copyBufferKernel(size_t aN)
 	{
 		//init(1, 0);
@@ -187,7 +273,7 @@ public:
 		//Copy between buffer using OpenCL kernel//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("copyBuffer");
-		openCL.setWorkspaceSize(bufferSize_, 8);
+		openCL.setWorkspaceSize(bufferSize_, 1024);
 
 		char* srcMemoryBuffer = new char[bufferSize_];
 		memset(srcMemoryBuffer, '1', bufferSize_);
@@ -236,9 +322,9 @@ public:
 	void runUnidirectionalBenchmarks(size_t aN)
 	{
 		//averageBenchmark(writeToGPU, 10);
-		//writeToGPU();
-		copyBuffer(aN);
-		copyBufferKernel(aN);
+		//writeToGPU(aN);
+		//copyBuffer(aN);
+		//copyBufferKernel(aN);
 		
 	}
 	void writeReadToGPU(size_t aN)
@@ -288,6 +374,7 @@ public:
 	void setBufferSize(uint32_t aBufferSize)
 	{
 		bufferSize_ = aBufferSize;
+		bufferLength_ = bufferSize_ / sizeof(datatype);
 	}
 
 	static void printAvailableDevices()

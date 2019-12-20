@@ -97,8 +97,8 @@ public:
 
 		//SeqMemoryTest0//
 		createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", options);
-		createKernel("nullKernel");
-		createKernel("copyBuffer");
+		createKernel("cl_000_nullKernel");
+		createKernel("cl_006_cpymemorykernel");
 	}
 
 	void createKernelProgram(const std::string aSourcePath, const char options[])
@@ -158,7 +158,7 @@ public:
 	void enqueueKernel(const std::string aKernelName)
 	{
 		commandQueue_.enqueueNDRangeKernel(*kernels_[aKernelName], cl::NullRange/*globaloffset*/, globalws_, localws_, NULL, &kernelBenchmark_);
-		kernelBenchmark_.wait();
+		//kernelBenchmark_.wait();
 	}
 
 	void enqueueCopyBuffer(const std::string aSrcBuffer, const std::string aDstBuffer, const uint32_t aSize)

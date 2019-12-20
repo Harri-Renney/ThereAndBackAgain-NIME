@@ -1,11 +1,11 @@
 __kernel
-void nullKernel(__global char* empty)
+void cl_000_nullKernel(__global char* empty)
 {
 
 }
 
 __kernel
-void copyBuffer(__global char* srcBuffer, __global char* dstBuffer)
+void cl_006_cpymemorykernel(__global char* srcBuffer, __global char* dstBuffer)
 {
 	uint idx = get_global_id(0);
 	
