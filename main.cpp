@@ -14,10 +14,10 @@ int main()
 	clBenchmark.setBufferSize(GPUOverhead_Benchmarks::GIGA_BYTE);
 	//clBenchmark.setBufferSize(1024);
 
+	clBenchmark.cl_000_nullKernel(10, true);
 	clBenchmark.cl_001_CPUtoGPU(10, true);
 	clBenchmark.cl_002_GPUtoCPU(10, true);
 	
-	//clBenchmark.cl_000_nullKernel(10);
 	//clBenchmark.runUnidirectionalBenchmarks(10);
 	//clBenchmark.runBidirectionalBenchmarks(100);
 	//
@@ -27,26 +27,23 @@ int main()
 
 	//Check CUDA support and device availability//
 	bool isCUDA = true;
-	int cudaVersion = 0;
-	cudaRuntimeGetVersion(&cudaVersion);
-	if (cudaVersion > 0)
+	int cudaRuntimeVersion = 0;
+	int cudaDriverVersion = 0;
+	cudaRuntimeGetVersion(&cudaRuntimeVersion);
+	cudaDriverGetVersion(&cudaDriverVersion);
+	std::cout << "CUDA runtime version: " << cudaRuntimeVersion << std::endl;
+	std::cout << "CUDA driver version: " << cudaDriverVersion << std::endl;
+	if(cudaRuntimeGetVersion == 0 || cudaDriverVersion ==0)
 	{
-		std::cout << "CUDA version: " << cudaVersion << std::endl;
-	}
-	else
-	{
-		std::cout << "No CUDA version detected." << std::endl;
+		std::cout << "Necessary CUDA runtime or driver version missing" << std::endl;
 		isCUDA = false;
 	}
 
 	int numCudaDevices = CUDA_Wrapper::isCudaAvailable();
-	if (numCudaDevices)
+	std::cout << "Number of avilable CUDA devices: " << numCudaDevices << std::endl;
+	if(numCudaDevices == 0)
 	{
-		std::cout << "Number of avilable CUDA devices: " << numCudaDevices << std::endl;
-	}
-	else
-	{
-		std::cout << "No CUDA devices detected" << std::endl;
+		std::cout << "A necessary CUDA device is not detected" << std::endl;
 		isCUDA = false;
 	}
 
@@ -63,7 +60,7 @@ int main()
 		cudaBenchmark.cuda_006_cpymemorykernel(10, true);
 	}
 	else
-		std::cout << "CUDA device or support ";
+		std::cout << "CUDA device or support no present to benchmark CUDA" << std::endl;
 
 	char haltc;
 	std::cin >> haltc;

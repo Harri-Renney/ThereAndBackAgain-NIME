@@ -49,11 +49,16 @@ public:
 	{
 	}
 
-	void cl_000_nullKernel(size_t aN)
+	void cl_000_nullKernel(size_t aN, bool isWarmup)
 	{
 		//Execute and average//
 		std::cout << "Executing test: cl_000_nullKernel" << std::endl;
 		openCL.setWorkspaceSize(1024, 32);
+		if (isWarmup)
+		{
+			openCL.enqueueKernel("cl_000_nullKernel");
+			openCL.waitKernel();
+		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			benchmarker_.startTimer("cl_000_nullKernel");
@@ -69,26 +74,25 @@ public:
 	void cl_001_CPUtoGPU(size_t aN, bool isWarmup)
 	{	
 		//Test preperation//
+		datatype* checkBuffer = new datatype[bufferLength_];
+		datatype* hostBuffer = new datatype[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			hostBuffer[i] = 42.0;
+
 		openCL.createBuffer("deviceBuffer", CL_MEM_WRITE_ONLY, bufferSize_);
-
-		datatype* memoryBuffer = new datatype[bufferSize_];
-		memset(memoryBuffer, '1', bufferSize_);
-
-		datatype* memoryBufferCheck = new datatype[bufferSize_];
-		memset(memoryBufferCheck, '1', bufferSize_);
 
 		//Execute and average//
 		std::cout << "Executing test: cl_001_CPUtoGPU" << std::endl;
 		if (isWarmup)
 		{
-			openCL.writeBuffer("deviceBuffer", bufferSize_, memoryBuffer);
+			openCL.writeBuffer("deviceBuffer", bufferSize_, hostBuffer);
 			openCL.waitKernel();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			//std::cout << "Write to buffer using enqueueWriteBuffer()" << std::endl;
 			benchmarker_.startTimer("cl_001_CPUtoGPU");
-			openCL.writeBuffer("deviceBuffer", bufferSize_, memoryBuffer);
+			openCL.writeBuffer("deviceBuffer", bufferSize_, hostBuffer);
 			openCL.waitKernel();
 
 			benchmarker_.pauseTimer("cl_001_CPUtoGPU");
@@ -96,10 +100,10 @@ public:
 		benchmarker_.elapsedTimer("cl_001_CPUtoGPU");
 
 		bool isSuccessful = true;
-		openCL.readBuffer("deviceBuffer", bufferSize_, memoryBufferCheck);
-		for (uint32_t i = 0; i != bufferSize_; ++i)
+		openCL.readBuffer("deviceBuffer", bufferSize_, checkBuffer);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (memoryBuffer[i] != memoryBufferCheck[i])
+			if (checkBuffer[i] != hostBuffer[i])
 			{
 				isSuccessful = false;
 				break;
@@ -108,8 +112,8 @@ public:
 		std::cout << "cl_001_CPUtoGPU successful: " << isSuccessful << std::endl << std::endl;
 
 		openCL.deleteBuffer("deviceBuffer");
-		delete memoryBuffer;
-		delete memoryBufferCheck;
+		delete hostBuffer;
+		delete checkBuffer;
 	}
 
 	void cl_002_GPUtoCPU(size_t aN, bool isWarmup)
