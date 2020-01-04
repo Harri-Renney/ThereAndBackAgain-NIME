@@ -15,13 +15,46 @@ __global__ void copy_buffer(float* srcBuffer, float* dstBuffer)
 	dstBuffer[idx] = srcBuffer[idx];
 }
 
-__global__ void singlesampleprocessing(float sample)
+__global__ void single_sample(float* singleSample)
 {
-	
+	uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	const float coefficient = 0.5;
+
+	singleSample[0] = singleSample[0] * coefficient;
+}
+
+__global__ void simple_buffer_processing(float* inputBuffer, float* outputBuffer)
+{
+	uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	float attenuatedSample = inputBuffer[idx] * 0.5;
+	//float attenuatedSample = inputBuffer[idx] * pow(M_E, -idx);
+	outputBuffer[idx] = attenuatedSample;
+}
+
+__global__ void complex_buffer_processing(float* inputBuffer, float* outputBuffer)
+{
+	int32_t globalSize = gridDim.x * blockDim.x;
+	int32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int32_t limUpper = globalSize - 2;
+	int32_t limLower = 2;
+
+	//float attenuationCoefficient = pow(M_E, -idx);
+
+	float smoothedSample = inputBuffer[idx];
+	if (idx > limLower & idx < limUpper)
+	{
+		smoothedSample = ((inputBuffer[idx - 2] + 2.0 * inputBuffer[idx - 1] + 3.0 * inputBuffer[idx] + 2.0 * inputBuffer[idx + 1] + inputBuffer[idx + 2]) / 9.0);
+	}
+
+	//float smoothedSample = idx > limLower & idx < limUpper ? ((inputBuffer[idx-2] + 2.0 * inputBuffer[idx-1] + 3.0 * inputBuffer[idx] + 2.0 * inputBuffer[idx+1] + inputBuffer[idx+2]) / 9.0) : inputBuffer[idx];
+	outputBuffer[idx] = smoothedSample;
+	//outputBuffer[idx] = smoothedSample * attenuationCoefficient;
 }
 
 __global__
-void ftdtCompute(float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int samplesIndex, float* samples, float* excitation, int listenerPosition, int excitationPosition, float propagationFactor, float dampingFactor, int rotationIndex)
+void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
 {
 	int blockId = blockIdx.y * gridDim.x + blockIdx.x;
 
@@ -43,13 +76,13 @@ void ftdtCompute(float* gridOne, float* gridTwo, float* gridThree, float* bounda
 		n = gridTwo;
 		nPOne = gridThree;
 	}
-	else if (rotationIndex == 1)
+	else if (*rotationIndex == 1)
 	{
 		nMOne = gridTwo;
 		n = gridThree;
 		nPOne = gridOne;
 	}
-	else if (rotationIndex == 2)
+	else if (*rotationIndex == 2)
 	{
 		nMOne = gridThree;
 		n = gridOne;
@@ -87,20 +120,20 @@ void ftdtCompute(float* gridOne, float* gridTwo, float* gridThree, float* bounda
 
 	//Calculate the nex pressure value//
 	float newPressure = 2 * centrePressureN;
-	newPressure += (dampingFactor - 1.0) * centrePressureNMO;
-	newPressure += propagationFactor * (leftPressure + rightPressure + upPressure + downPressure - (4 * centrePressureN));
-	newPressure *= 1.0 / (dampingFactor + 1.0);
+	newPressure += (*dampingFactor - 1.0) * centrePressureNMO;
+	newPressure += *propagationFactor * (leftPressure + rightPressure + upPressure + downPressure - (4 * centrePressureN));
+	newPressure *= 1.0 / (*dampingFactor + 1.0);
 
 
 	//If the cell is the listener position, sets the next sound sample in buffer to value contained here//
-	if (ixy == listenerPosition)
+	if (ixy == *listenerPosition)
 	{
-		samples[samplesIndex] = n[ixy];
+		samples[*samplesIndex] = n[ixy];
 	}
 
-	if (ixy == excitationPosition)	//If the position is an excitation...
+	if (ixy == *excitationPosition)	//If the position is an excitation...
 	{
-		newPressure += excitation[samplesIndex];	//Input excitation value into point. Then increment to next excitation in next iteration.
+		newPressure += excitation[*samplesIndex];	//Input excitation value into point. Then increment to next excitation in next iteration.
 	}
 
 	nPOne[ixy] = newPressure;
@@ -119,7 +152,32 @@ namespace CUDA_Kernels
 		dim3 threadsPerBlock(1024);
 		copy_buffer << <numBlocks, threadsPerBlock >> > (cudaSrcBuffer, cudaDstBuffer);
 	}
+	void singleSampleExecute(float* singleSample)
+	{
+		size_t numBlocks = 1;
+		dim3 threadsPerBlock(1);
+		single_sample << <numBlocks, threadsPerBlock >> > (singleSample);
+	}
+	void simpleBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	{
+		size_t numBlocks = aN / 1024;
+		dim3 threadsPerBlock(1024);
+		simple_buffer_processing << <numBlocks, threadsPerBlock >> > (cudaInputBuffer, cudaOutputBuffer);
+	}
+	void complexBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	{
+		size_t numBlocks = aN / 1024;
+		dim3 threadsPerBlock(1024);
+		complex_buffer_processing << <numBlocks, threadsPerBlock >> > (inputBuffer, outputBuffer);
+	}
 
+	void complexBufferSynthesis(size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
+	{
+		//Grid size is the number of workitems to allocate. So implicit to the kernel//
+		size_t numBlocks = aGridSize / 1024;
+		dim3 threadsPerBlock(1024);
+		complex_buffer_synthesis << <numBlocks, threadsPerBlock >> > (gridOne, gridTwo, gridThree, boundaryGain, samplesIndex, samples, excitation, listenerPosition, excitationPosition, propagationFactor, dampingFactor, rotationIndex);
+	}
 }
 
 //void wrapper(void)

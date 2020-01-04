@@ -5,11 +5,60 @@ void cl_000_nullKernel(__global char* empty)
 }
 
 __kernel
-void cl_006_cpymemorykernel(__global char* srcBuffer, __global char* dstBuffer)
+void cl_006_cpymemorykernel(__global float* srcBuffer, __global float* dstBuffer)
 {
 	uint idx = get_global_id(0);
 	
 	dstBuffer[idx] = srcBuffer[idx];
+}
+
+__kernel
+void cl_007_singlesample(__global float* singleSample)
+{
+	const float coefficient = 0.5;
+	uint idx = get_global_id(0);
+	
+	singleSample[0] = singleSample[0] * coefficient;
+}
+
+__kernel
+void cl_008_simplebufferprocessing(__global float* sampleBuffer, __global float* outputBuffer)
+{
+	int idx = get_global_id(0);
+	
+	//float attenuatedSample = sampleBuffer[idx] * 0.5;
+	float attenuatedSample = sampleBuffer[idx] * pow(M_E, -idx);
+	outputBuffer[idx] = attenuatedSample;
+}
+
+__kernel
+void cl_009_complexbufferprocessing(__global float* inputBuffer, __global float* outputBuffer)
+{
+	int idx = get_global_id(0);
+	int limUpper = get_global_size(0) - 2;
+	int limLower = 2;
+	
+	//float attenuationCoefficient = pow(M_E, -idx);
+	
+	float smoothedSample = inputBuffer[idx];
+	if(idx > limLower & idx < limUpper)
+	{
+		smoothedSample = ((inputBuffer[idx-2] + 2.0 * inputBuffer[idx-1] + 3.0 * inputBuffer[idx] + 2.0 * inputBuffer[idx+1] + inputBuffer[idx+2]) / 9.0);
+	}
+	
+	//float smoothedSample = idx > limLower & idx < limUpper ? ((inputBuffer[idx-2] + 2.0 * inputBuffer[idx-1] + 3.0 * inputBuffer[idx] + 2.0 * inputBuffer[idx+1] + inputBuffer[idx+2]) / 9.0) : inputBuffer[idx];
+	outputBuffer[idx] = smoothedSample;
+	//outputBuffer[idx] = smoothedSample * attenuationCoefficient;
+}
+
+__kernel
+void cl_012_interruptedbufferprocessing(__global float* sampleBuffer, __global float* outputBuffer)
+{
+	int idx = get_global_id(0);
+	
+	//float attenuatedSample = sampleBuffer[idx] * 0.5;
+	float attenuatedSample = sampleBuffer[idx] * pow(M_E, -idx);
+	outputBuffer[idx] = attenuatedSample;
 }
 
 __kernel
@@ -22,12 +71,6 @@ __kernel
 void bidirectional(__global char* srcBuffer, __global char* dstBuffer)
 {
 	
-}
-
-__kernel
-void singleSample(__global char* srcBuffer, __global char* dstBuffer)
-{
-
 }
 
 __kernel

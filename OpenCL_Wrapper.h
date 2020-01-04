@@ -166,11 +166,11 @@ public:
 		commandQueue_.enqueueCopyBuffer((*buffers_[aSrcBuffer]), (*buffers_[aDstBuffer]), 0, 0, aSize, NULL, NULL);
 	}
 
-	void* pinMappedMemory(const std::string aBuffer, const uint32_t aSize)
+	void* mapMemory(const std::string aBuffer, const uint32_t aSize)
 	{
 		return commandQueue_.enqueueMapBuffer((*buffers_[aBuffer]), true, NULL, 0, aSize, NULL, NULL, &errorStatus_);
 	}
-	void unpinMappedMemory(const std::string aBuffer, void* aPtr, const uint32_t aSize)
+	void unmapMemory(const std::string aBuffer, void* aPtr, const uint32_t aSize)
 	{
 		commandQueue_.enqueueUnmapMemObject((*buffers_[aBuffer]), aPtr, NULL, NULL);
 	}

@@ -28,6 +28,10 @@ namespace CUDA_Kernels
 {
 	void nullKernelExecute();
 	void copyBufferExecute(size_t aN, float* srcBuffer, float* dstBuffer, float* cudaSrcBuffer, float* cudaDstBuffer);
+	void singleSampleExecute(float* singleSample);
+	void simpleBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer);
+	void complexBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer);
+	void complexBufferSynthesis(size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex);
 }
 
 class CUDA_Wrapper
@@ -243,7 +247,7 @@ public:
 		//Test preperation//
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
-			srcMemoryBuffer[i] = 4.0;
+			srcMemoryBuffer[i] = 42.0;
 		float* dstMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
 			dstMemoryBuffer[i] = 0.0;
@@ -292,7 +296,7 @@ public:
 	{
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
-			srcMemoryBuffer[i] = 4.0;
+			srcMemoryBuffer[i] = 42.0;
 		float* dstMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
 			dstMemoryBuffer[i] = 0.0;
@@ -336,27 +340,256 @@ public:
 		delete(srcMemoryBuffer);
 		delete(dstMemoryBuffer);
 	}
-	void cuda_007_singlesample()
+	void cuda_007_singlesample(size_t aN, bool isWarmup)
 	{
+		float* hostSingleSample = new float;
+		float* checkSingleSample = new float;
+		*hostSingleSample = 42.0;
+		*checkSingleSample = 0.0;
 
+		float* deviceSingleBuffer;
+		cudaMalloc((void**)&deviceSingleBuffer, sizeof(float));
+
+		cudaMemcpy(deviceSingleBuffer, hostSingleSample, bufferSize_, cudaMemcpyHostToDevice);
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_007_singlesample" << std::endl;
+		if (isWarmup)
+			CUDA_Kernels::singleSampleExecute(hostSingleSample);
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cuda_007_singlesample");
+			CUDA_Kernels::singleSampleExecute(hostSingleSample);
+			//cudaDeviceSynchronize();
+			benchmarker_.pauseTimer("cuda_007_singlesample");
+		}
+		benchmarker_.elapsedTimer("cuda_007_singlesample");
+
+		//Check contents//
+		bool isSuccessful = true;
+		cudaMemcpy(checkSingleSample, deviceSingleBuffer, sizeof(float), cudaMemcpyDeviceToHost);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			if (checkSingleSample[i] != hostSingleSample[i] * 0.5)
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cuda_007_singlesample successful: " << isSuccessful << std::endl << std::endl;
+
+		cudaFree(deviceSingleBuffer);
+		delete(hostSingleSample);
+		delete(checkSingleSample);
 	}
-	void cuda_008_simplebufferprocessing()
+	void cuda_008_simplebufferprocessing(size_t aN, bool isWarmup)
 	{
+		float* inputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			inputBuffer[i] = 42.0;
+		float* outputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			outputBuffer[i] = 0.0;
 
+		float* d_inputBuffer;
+		float* d_outputBuffer;
+		cudaMalloc((void**)&d_inputBuffer, bufferSize_);
+		cudaMalloc((void**)&d_outputBuffer, bufferSize_);
+
+		cudaMemcpy(d_inputBuffer, inputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_outputBuffer, outputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_008_simplebufferprocessing" << std::endl;
+		if (isWarmup)
+		{
+			CUDA_Kernels::simpleBufferProcessing(bufferLength_, inputBuffer, outputBuffer, d_inputBuffer, d_outputBuffer);
+		}
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cuda_008_simplebufferprocessing");
+			CUDA_Kernels::simpleBufferProcessing(bufferLength_, inputBuffer, outputBuffer, d_inputBuffer, d_outputBuffer);
+			//cudaDeviceSynchronize();
+			benchmarker_.pauseTimer("cuda_008_simplebufferprocessing");
+		}
+		benchmarker_.elapsedTimer("cuda_008_simplebufferprocessing");
+
+		//Check contents//
+		bool isSuccessful = true;
+		cudaMemcpy(outputBuffer, d_outputBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			if (outputBuffer[i] != inputBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cuda_008_simplebufferprocessing successful: " << isSuccessful << std::endl << std::endl;
+
+		cudaFree(d_inputBuffer);
+		cudaFree(d_outputBuffer);
+		delete(inputBuffer);
+		delete(outputBuffer);
 	}
-	void cuda_009_complexbufferprocessing()
+	void cuda_009_complexbufferprocessing(size_t aN, bool isWarmup)
 	{
+		float* inputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			inputBuffer[i] = 42.0 * (i % 4);
+		float* outputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			outputBuffer[i] = 0.0;
 
+		float* d_inputBuffer;
+		float* d_outputBuffer;
+		cudaMalloc((void**)&d_inputBuffer, bufferSize_);
+		cudaMalloc((void**)&d_outputBuffer, bufferSize_);
+
+		cudaMemcpy(d_inputBuffer, inputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_outputBuffer, outputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_008_simplebufferprocessing" << std::endl;
+		if (isWarmup)
+		{
+			CUDA_Kernels::complexBufferProcessing(bufferLength_, inputBuffer, outputBuffer, d_inputBuffer, d_outputBuffer);
+		}
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cuda_008_simplebufferprocessing");
+			CUDA_Kernels::complexBufferProcessing(bufferLength_, inputBuffer, outputBuffer, d_inputBuffer, d_outputBuffer);
+			//cudaDeviceSynchronize();
+			benchmarker_.pauseTimer("cuda_008_simplebufferprocessing");
+		}
+		benchmarker_.elapsedTimer("cuda_008_simplebufferprocessing");
+
+		//Check contents//
+		bool isSuccessful = true;
+		cudaMemcpy(outputBuffer, d_outputBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			if (outputBuffer[i] != inputBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cuda_008_simplebufferprocessing successful: " << isSuccessful << std::endl << std::endl;
+
+		cudaFree(d_inputBuffer);
+		cudaFree(d_outputBuffer);
+		delete(inputBuffer);
+		delete(outputBuffer);
 	}
-	void cuda_010_interuptedbufferprocessing()
+	void cuda_010_simplebuffersynthesis(size_t aN, bool isWarmup)
 	{
-
+		
 	}
-	void cuda_011_simplebuffersynthesis()
+	void cuda_011_complexbuffersynthesis(size_t aN, bool isWarmup)
 	{
+		//FDTD CUDA allocation//
+		size_t bufferLength;
+		size_t gridSize;
+		float* d_gridOne;
+		float* d_gridTwo;
+		float* d_gridThree;
+		float* d_boundaryGain;
+		int* d_samplesIndex;
+		float* d_samples;
+		float* d_excitation;
+		int* d_listenerPosition;
+		int* d_excitationPosition;
+		float* d_propagationFactor;
+		float* d_dampingFactor;
+		int* d_rotationIndex;
+		cudaMalloc((void**)&d_gridOne, gridSize);
+		cudaMalloc((void**)&d_gridTwo, gridSize);
+		cudaMalloc((void**)&d_gridThree, gridSize);
+		cudaMalloc((void**)&d_boundaryGain, gridSize);
+		cudaMalloc((void**)&d_samplesIndex, sizeof(int));
+		cudaMalloc((void**)&d_samples, bufferLength * sizeof(float));
+		cudaMalloc((void**)&d_excitation, bufferLength * sizeof(float));
+		cudaMalloc((void**)&d_listenerPosition, sizeof(int));
+		cudaMalloc((void**)&d_excitationPosition, sizeof(int));
+		cudaMalloc((void**)&d_propagationFactor, sizeof(float));
+		cudaMalloc((void**)&d_dampingFactor, sizeof(float));
+		cudaMalloc((void**)&d_rotationIndex, sizeof(int));
 
+		//FDTD static variables//
+		float* boundaryGain = new float[bufferLength];
+		int* listenerPosition = new int;
+		int* excitationPosition = new int;
+		float* propagationFactor = new float;
+		float* dampingFactor = new float;
+
+		cudaMemcpy(d_boundaryGain, boundaryGain, gridSize, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_listenerPosition, listenerPosition, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_excitationPosition, excitationPosition, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_propagationFactor, propagationFactor, sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_dampingFactor, dampingFactor, sizeof(float), cudaMemcpyHostToDevice);
+
+		//FDTD dynamic variables//
+		int* samplesIndex = new int;
+		float* samples = new float[bufferLength];
+		float* excitation = new float[bufferLength];
+		int* rotationIndex = new int;
+
+		cudaMemcpy(d_samplesIndex, samplesIndex, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_samples, samples, bufferLength * sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_excitation, excitation, bufferLength * sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_rotationIndex, rotationIndex, sizeof(int), cudaMemcpyHostToDevice);
+
+		//Initialise host variables to copy to GPU//
+		(*rotationIndex) = 0;
+		(*samplesIndex) = 0;
+		for (size_t i = 0; i != bufferLength; ++i)
+			excitation[i] = 0.5;
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_011_complexbuffersynthesis" << std::endl;
+		if (isWarmup)
+		{
+			CUDA_Kernels::complexBufferSynthesis(bufferLength, gridSize, d_gridOne, d_gridTwo, d_gridThree, d_boundaryGain, d_samplesIndex, d_samples, d_excitation, d_listenerPosition, d_excitationPosition, d_propagationFactor, d_dampingFactor, d_rotationIndex);
+		}
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			for (uint32_t j = 0; j != bufferLength; ++j)
+			{
+				//Update variables//
+				cudaMemcpy(d_rotationIndex, rotationIndex, sizeof(int), cudaMemcpyHostToDevice);
+				cudaMemcpy(d_samplesIndex, samplesIndex, sizeof(int), cudaMemcpyHostToDevice);
+				cudaMemcpy(d_samples, samples, bufferLength * sizeof(float), cudaMemcpyHostToDevice);
+
+				benchmarker_.startTimer("cuda_011_complexbuffersynthesis");
+				CUDA_Kernels::complexBufferSynthesis(bufferLength, gridSize, d_gridOne, d_gridTwo, d_gridThree, d_boundaryGain, d_samplesIndex, d_samples, d_excitation, d_listenerPosition, d_excitationPosition, d_propagationFactor, d_dampingFactor, d_rotationIndex);
+				//cudaDeviceSynchronize();
+				benchmarker_.pauseTimer("cuda_011_complexbuffersynthesis");
+
+				//Get synthesizer samples//
+				cudaMemcpy(samples, d_samples, bufferLength * sizeof(float), cudaMemcpyDeviceToHost);
+
+				(*samplesIndex)++;
+				(*rotationIndex) = (*rotationIndex + 1) % 3;
+			}
+			(*samplesIndex) = 0;
+		}
+		benchmarker_.elapsedTimer("cuda_011_complexbuffersynthesis");
+
+		cudaFree(d_gridOne);
+		cudaFree(d_gridTwo);
+		cudaFree(d_gridThree);
+		cudaFree(d_boundaryGain);
+		cudaFree(d_samplesIndex);
+		cudaFree(d_samples);
+		cudaFree(d_excitation);
+		cudaFree(d_listenerPosition);
+		cudaFree(d_excitationPosition);
+		cudaFree(d_propagationFactor);
+		cudaFree(d_dampingFactor);
+		cudaFree(d_rotationIndex);
 	}
-	void cuda_012_complexbuffersynthesis()
+	void cuda_012_interruptedbufferprocessing()
 	{
 
 	}
