@@ -9,31 +9,37 @@ int main()
 {
 	OpenCL_Wrapper::printAvailableDevices();
 
-	GPUOverhead_Benchmarks clBenchmark(0,0);
+	// 0,0 = CPU
+	// 0,1 = Intel GPU
+	// 1,0 = AMD GPU
+	GPUOverhead_Benchmarks clBenchmark(1,0);
 	
 	//@ToDo - Sort out way of dynamically working out localworkgroupsize from buffer size//
 	//clBenchmark.setBufferSize(GPUOverhead_Benchmarks::MEGA_BYTE);
-	clBenchmark.setBufferSize(1024 * sizeof(float));
+	//clBenchmark.setBufferSize(128 * sizeof(float));
+	//clBenchmark.setBufferSize(88200 * sizeof(float));
+	clBenchmark.setBufferSize(44100 * sizeof(float));
 
-	//clBenchmark.cl_000_nullKernel(10, true);
-	//clBenchmark.cl_001_CPUtoGPU(10, true);
-	//clBenchmark.cl_002_GPUtoCPU(10, true);
-	//clBenchmark.cl_003_CPUtoGPUtoCPU(1000, true);
-	//clBenchmark.cl_004_mappedmemory(1000, true);
-	//clBenchmark.cl_005_cpymemory(10, true);
-	//clBenchmark.cl_006_cpymemorykernel(10, true);
-	//clBenchmark.cl_007_singlesample(1000, true);
+	clBenchmark.cl_000_nullKernel(1000, true);
+	clBenchmark.cl_001_CPUtoGPU(1000, true);
+	clBenchmark.cl_002_GPUtoCPU(1000, true);
+	clBenchmark.cl_003_CPUtoGPUtoCPU(1000, true);
+	clBenchmark.cl_004_mappedmemory(1000, true);
+	clBenchmark.cl_005_cpymemory(1000, true);
+	clBenchmark.cl_006_cpymemorykernel(1000, true);
+	clBenchmark.cl_007_singlesample(1000, true);
 	clBenchmark.cl_007_singlesamplemapping(1000, true);
-	//clBenchmark.cl_008_simplebufferprocessing(10000, true);
-	//clBenchmark.cl_008_simplebufferprocessingmapping(1000, true);
-	//clBenchmark.cl_009_complexbufferprocessing(10000, true);
-	//clBenchmark.cl_009_complexbufferprocessingmapping(10000, true);
-	//clBenchmark.cl_011_complexbuffersynthesis(10, true);
+	clBenchmark.cl_008_simplebufferprocessing(1000, true);
+	clBenchmark.cl_008_simplebufferprocessingmapping(1000, true);
+	clBenchmark.cl_009_complexbufferprocessing(1000, true);
+	clBenchmark.cl_009_complexbufferprocessingmapping(1000, true);
+	clBenchmark.cl_010_simplebuffersynthesis(1000, true);
+	clBenchmark.cl_011_complexbuffersynthesis(10, true);
 	clBenchmark.cl_012_interruptedbufferprocessing(1000, true);
 	
 	//clBenchmark.runUnidirectionalBenchmarks(10, 44100);
-	//clBenchmark.runBidirectionalBenchmarks(10, 44100);
-	//clBenchmark.bidirectionalComplexSynthesis(10, 44100);
+	//clBenchmark.runBidirectionalBenchmarks(1, 44100);
+	//clBenchmark.bidirectionalComplexSynthesis(1, 44100);
 	//
 	//clBenchmark.writeToGPUMapped(1000);
 	

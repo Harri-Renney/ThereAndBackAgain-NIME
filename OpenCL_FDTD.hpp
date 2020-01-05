@@ -217,8 +217,8 @@ public:
 		nPressureBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, gridByteSize_);
 		nPlusOnePressureBuffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, gridByteSize_);
 		boundaryGridBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, gridByteSize_);
-		outputBuffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, output_.bufferSize_);
-		excitationBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, excitation_.bufferSize_);
+		outputBuffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, output_.bufferSize_);
+		excitationBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, excitation_.bufferSize_);
 
 		//Copy data to newly created device's memory//
 		commandQueue_.enqueueWriteBuffer(nMinusOnePressureBuffer_, CL_TRUE, 0, gridByteSize_, model_.getNMinusOneGridBuffer());
@@ -288,7 +288,12 @@ public:
 		updateDynamicVariables(propagationFactor_, dampingCoefficient_, listenerPositionArg, excitationPositionArg);
 
 		//Load excitation samples into GPU//
-		commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
+
+		//commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
+		auto mapMemoryOne = commandQueue_.enqueueMapBuffer(excitationBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
+		memcpy(mapMemoryOne, inbuf, excitation_.bufferSize_);
+		commandQueue_.enqueueUnmapMemObject(excitationBuffer_, mapMemoryOne, NULL, NULL);
+
 		ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
 
 		//Calculate buffer size of synthesizer output samples//
@@ -304,7 +309,10 @@ public:
 		output_.resetIndex();
 		excitation_.resetIndex();
 
-		commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
+		//commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
+		auto mapMemoryTwo = commandQueue_.enqueueMapBuffer(outputBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
+		memcpy(output_.buffer_, mapMemoryTwo, output_.bufferSize_);
+		commandQueue_.enqueueUnmapMemObject(outputBuffer_, mapMemoryTwo, NULL, NULL);
 		for (int k = 0; k != frames; ++k)
 			outbuf[k] = output_[k];
 

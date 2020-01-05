@@ -22,12 +22,12 @@ void cl_007_singlesample(__global float* singleSample)
 }
 
 __kernel
-void cl_008_simplebufferprocessing(__global float* sampleBuffer, __global float* outputBuffer)
+void cl_008_simplebufferprocessing(__global float* inputBuffer, __global float* outputBuffer)
 {
 	int idx = get_global_id(0);
 	
-	//float attenuatedSample = sampleBuffer[idx] * 0.5;
-	float attenuatedSample = sampleBuffer[idx] * pow(M_E, -idx);
+	float attenuatedSample = inputBuffer[idx] * 0.5;
+	//float attenuatedSample = inputBuffer[idx] * pow(M_E, -idx);
 	outputBuffer[idx] = attenuatedSample;
 }
 
@@ -51,13 +51,27 @@ void cl_009_complexbufferprocessing(__global float* inputBuffer, __global float*
 	//outputBuffer[idx] = smoothedSample * attenuationCoefficient;
 }
 
+__kernel 
+void cl_010_simplebuffersynthesis(__global int* sampleRate,
+								  __global float* frequency,
+								  __global float* output)
+{
+	int global_id = get_global_id(0);
+	
+	float amplitude = 0.5;
+	float relativeFrequency = *frequency / *sampleRate;
+	int time = global_id;
+	float currentSample = amplitude * sin(2.0 * M_PI * relativeFrequency * time);
+	output[global_id] = currentSample;
+}
+
 __kernel
-void cl_012_interruptedbufferprocessing(__global float* sampleBuffer, __global float* outputBuffer)
+void cl_012_interruptedbufferprocessing(__global float* inputBuffer, __global float* outputBuffer)
 {
 	int idx = get_global_id(0);
 	
-	//float attenuatedSample = sampleBuffer[idx] * 0.5;
-	float attenuatedSample = sampleBuffer[idx] * pow(M_E, -idx);
+	//float attenuatedSample = inputBuffer[idx] * 0.5;
+	float attenuatedSample = inputBuffer[idx] * pow(M_E, -idx);
 	outputBuffer[idx] = attenuatedSample;
 }
 

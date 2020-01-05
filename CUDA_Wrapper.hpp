@@ -6,6 +6,7 @@
 #include <cuda.h>
 
 #include "benchmarker.hpp"
+#include "AudioFile.h"
 
 //TIMING USING NVIDIA EVENTS//
 //cudaEvent_t start, stop;
@@ -31,7 +32,9 @@ namespace CUDA_Kernels
 	void singleSampleExecute(float* singleSample);
 	void simpleBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer);
 	void complexBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer);
+	void simpleBufferSynthesis(size_t aN, int* cudaSampleRate, float* cudaFrequency, float* cudaOutputBuffer);
 	void complexBufferSynthesis(size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex);
+	void interruptedBufferProcessing(size_t aBufferSize, float* sampleBuffer, float* outputBuffer);
 }
 
 class CUDA_Wrapper
@@ -48,7 +51,7 @@ private:
 	Benchmarker benchmarker_;
 	
 public:
-	CUDA_Wrapper()
+	CUDA_Wrapper() : benchmarker_("cudalog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
 	{
 		for (size_t i = 0; i != 10; ++i)
 			standardBufferlengths[i] = 2^i;
@@ -484,7 +487,50 @@ public:
 	}
 	void cuda_010_simplebuffersynthesis(size_t aN, bool isWarmup)
 	{
+		int* sampleRate = new int;
+		*sampleRate = 44100;
+		float* frequency = new float;
+		*frequency = 1400.0;
+		float* outputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			outputBuffer[i] = 0.0;
+
+		int* d_sampleRate;
+		float* d_frequency;
+		float* d_outputBuffer;
+		cudaMalloc((void**)&d_sampleRate, sizeof(int));
+		cudaMalloc((void**)&d_frequency, sizeof(float));
+		cudaMalloc((void**)&d_outputBuffer, bufferSize_);
+
+		cudaMemcpy(d_sampleRate, sampleRate, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_frequency, frequency, sizeof(float), cudaMemcpyHostToDevice);
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_010_simplebuffersynthesis" << std::endl;
+		if (isWarmup)
+		{
+			CUDA_Kernels::simpleBufferSynthesis(bufferLength_, d_sampleRate, d_frequency, d_outputBuffer);
+		}
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cuda_010_simplebuffersynthesis");
+			CUDA_Kernels::simpleBufferSynthesis(bufferLength_, d_sampleRate, d_frequency, d_outputBuffer);
+			//cudaDeviceSynchronize();
+			benchmarker_.pauseTimer("cuda_010_simplebuffersynthesis");
+		}
+		benchmarker_.elapsedTimer("cuda_010_simplebuffersynthesis");
+
+		//Save audio to file for inspection//
+		outputAudioFile("cl_010_simplebuffersynthesis.wav", outputBuffer, bufferLength_);
+		std::cout << "cl_010_simplebuffersynthesis successful: Inspect audio log \"cl_010_simplebuffersynthesis.wav\"" << std::endl << std::endl;
+
+		cudaFree(d_sampleRate); 
+		cudaFree(d_frequency);
+		cudaFree(d_outputBuffer);
 		
+		delete sampleRate;
+		delete frequency;
+		delete outputBuffer;
 	}
 	void cuda_011_complexbuffersynthesis(size_t aN, bool isWarmup)
 	{
@@ -589,9 +635,55 @@ public:
 		cudaFree(d_dampingFactor);
 		cudaFree(d_rotationIndex);
 	}
-	void cuda_012_interruptedbufferprocessing()
+	void cuda_012_interruptedbufferprocessing(size_t aN, bool isWarmup)
 	{
+		float* inputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			inputBuffer[i] = 42.0;
+		float* outputBuffer = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			outputBuffer[i] = 0.0;
 
+		float* d_inputBuffer;
+		float* d_outputBuffer;
+		cudaMalloc((void**)&d_inputBuffer, bufferSize_);
+		cudaMalloc((void**)&d_outputBuffer, bufferSize_);
+
+		cudaMemcpy(d_inputBuffer, inputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_outputBuffer, outputBuffer, bufferSize_, cudaMemcpyHostToDevice);
+
+		//Execute and average//
+		std::cout << "Executing test: cuda_008_simplebufferprocessing" << std::endl;
+		if (isWarmup)
+		{
+			CUDA_Kernels::simpleBufferProcessing(bufferLength_, inputBuffer, outputBuffer, d_inputBuffer, d_outputBuffer);
+		}
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			benchmarker_.startTimer("cuda_008_simplebufferprocessing");
+			CUDA_Kernels::interruptedBufferProcessing(bufferLength_, d_inputBuffer, d_outputBuffer);
+			//cudaDeviceSynchronize();
+			benchmarker_.pauseTimer("cuda_008_simplebufferprocessing");
+		}
+		benchmarker_.elapsedTimer("cuda_008_simplebufferprocessing");
+
+		//Check contents//
+		bool isSuccessful = true;
+		cudaMemcpy(outputBuffer, d_outputBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			if (outputBuffer[i] != inputBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cuda_008_simplebufferprocessing successful: " << isSuccessful << std::endl << std::endl;
+
+		cudaFree(d_inputBuffer);
+		cudaFree(d_outputBuffer);
+		delete(inputBuffer);
+		delete(outputBuffer);
 	}
 
 	//This test finds buffer size where a unidirectional communication setup would loose real-time reliability//
@@ -638,6 +730,37 @@ public:
 			calculatedSamples += bufferLength_;
 		}
 		benchmarker_.elapsedTimer("cuda_014_unidirectionaltest");
+	}
+
+	static void outputAudioFile(const char* aPath, float* aAudioBuffer, uint32_t aAudioLength)
+	{
+		//SF_INFO sfinfo;
+		//sfinfo.channels = 1;
+		//sfinfo.samplerate = 44100;
+		//sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+		//
+		////printf("writing: %s\n", file_path);
+		//SNDFILE *outfile = sf_open(file_path, SFM_WRITE, &sfinfo);
+		//if (sf_error(outfile) != SF_ERR_NO_ERROR) {
+		//	printf("error: %s\n", sf_strerror(outfile));
+		//}
+		//sf_write_float(outfile, &audio_buffer[0], audio_length);
+		//sf_write_sync(outfile);
+		//sf_close(outfile);
+
+		AudioFile<float> audioFile;
+		AudioFile<float>::AudioBuffer buffer;
+
+		buffer.resize(1);
+		buffer[0].resize(aAudioLength);
+		audioFile.setBitDepth(24);
+		audioFile.setSampleRate(44100);
+
+		for (int k = 0; k != aAudioLength; ++k)
+			buffer[0][k] = (float)aAudioBuffer[k];
+
+		audioFile.setAudioBuffer(buffer);
+		audioFile.save(aPath);
 	}
 
 	static bool isCudaAvailable()

@@ -191,6 +191,10 @@ public:
 		localws_ = aLocalSize;
 	}
 
+	uint32_t getMaxLocalWorkspace()
+	{
+		return device_.getInfo< CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+	}
 
 	//Static Functions//
 	static void printAvailableDevices()
@@ -228,6 +232,7 @@ public:
 				std::cout << "\t\tDevice Max Allocateable Memory: " << device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>() << std::endl;
 				std::cout << "\t\tDevice Local Memory: " << device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() << std::endl;
 				std::cout << "\t\tDevice Available: " << device.getInfo< CL_DEVICE_AVAILABLE>() << std::endl;
+				std::cout << "\t\tMax workgroup size: " << device.getInfo< CL_DEVICE_MAX_WORK_GROUP_SIZE>() << std::endl;
 
 				//If an AMD platform//
 				if (strstr(platform.getInfo<CL_PLATFORM_NAME>().c_str(), "AMD"))

@@ -4,6 +4,8 @@
 #include <device_launch_parameters.h>
 
 #include "CUDA_Wrapper.hpp"
+#define M_PI           3.14159265358979323846
+#define M_E 2.718281828459
 
 __global__ void null_kernel(void) {
 }
@@ -51,6 +53,21 @@ __global__ void complex_buffer_processing(float* inputBuffer, float* outputBuffe
 	//float smoothedSample = idx > limLower & idx < limUpper ? ((inputBuffer[idx-2] + 2.0 * inputBuffer[idx-1] + 3.0 * inputBuffer[idx] + 2.0 * inputBuffer[idx+1] + inputBuffer[idx+2]) / 9.0) : inputBuffer[idx];
 	outputBuffer[idx] = smoothedSample;
 	//outputBuffer[idx] = smoothedSample * attenuationCoefficient;
+}
+
+__global__
+void simple_buffer_synthesis(int* sampleRate, float* frequency, float* outputBuffer)
+{
+	int32_t globalSize = gridDim.x * blockDim.x;
+	int32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	//float attenuationCoefficient = pow(M_E, -idx);
+
+	float amplitude = 0.5;
+	float relativeFrequency = *frequency / *sampleRate;
+	int time = idx;
+	float currentSample = amplitude * sin(2.0 * M_PI * relativeFrequency * time);
+	outputBuffer[idx] = currentSample;
 }
 
 __global__
@@ -139,6 +156,17 @@ void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, 
 	nPOne[ixy] = newPressure;
 }
 
+__global__
+void interrupted_buffer_processing(float* inputBuffer, float* outputBuffer)
+{
+	int32_t globalSize = gridDim.x * blockDim.x;
+	int32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	//float attenuatedSample = inputBuffer[idx] * 0.5;
+	float attenuatedSample = inputBuffer[idx] * pow(M_E, -idx);
+	outputBuffer[idx] = attenuatedSample;
+}
+
 namespace CUDA_Kernels
 {
 
@@ -171,12 +199,24 @@ namespace CUDA_Kernels
 		complex_buffer_processing << <numBlocks, threadsPerBlock >> > (inputBuffer, outputBuffer);
 	}
 
+	void simpleBufferSynthesis(size_t aN, int* cudaSampleRate, float* cudaFrequency, float* cudaOutputBuffer)
+	{
+		size_t numBlocks = aN / 1024;
+		dim3 threadsPerBlock(1024);
+		simple_buffer_synthesis << <numBlocks, threadsPerBlock >> > (cudaSampleRate, cudaFrequency, cudaOutputBuffer);
+	}
 	void complexBufferSynthesis(size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
 	{
 		//Grid size is the number of workitems to allocate. So implicit to the kernel//
 		size_t numBlocks = aGridSize / 1024;
 		dim3 threadsPerBlock(1024);
 		complex_buffer_synthesis << <numBlocks, threadsPerBlock >> > (gridOne, gridTwo, gridThree, boundaryGain, samplesIndex, samples, excitation, listenerPosition, excitationPosition, propagationFactor, dampingFactor, rotationIndex);
+	}
+	void interruptedBufferProcessing(size_t aBufferSize, float* sampleBuffer, float* outputBuffer)
+	{
+		size_t numBlocks = aBufferSize / 1024;
+		dim3 threadsPerBlock(1024);
+		interrupted_buffer_processing << <numBlocks, threadsPerBlock >> > (sampleBuffer, outputBuffer);
 	}
 }
 

@@ -1,8 +1,8 @@
 #ifndef GPUOVERHEAD_BENCHMARKS_HPP
 #define GPUOVERHEAD_BENCHMARKS_HPP
 
-//#define CL_HPP_TARGET_OPENCL_VERSION 200
-#define CL_HPP_TARGET_OPENCL_VERSION 120
+#define CL_HPP_TARGET_OPENCL_VERSION 200
+//#define CL_HPP_TARGET_OPENCL_VERSION 120
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #include <CL/cl2.hpp>
 //#include <CL/cl.hpp>
@@ -52,7 +52,7 @@ public:
 	static const uint32_t GIGA_BYTE = 1024 * 1024 * 1024;
 	static const uint32_t MEGA_BYTE = 1024 * 1024;
 	static const uint32_t KILO_BYTE = 1024;
-	GPUOverhead_Benchmarks(uint32_t aPlatform, uint32_t aDevice) : openCL(aPlatform, aDevice), cuda_(), fdtdSynth()
+	GPUOverhead_Benchmarks(uint32_t aPlatform, uint32_t aDevice) : openCL(aPlatform, aDevice), cuda_(), fdtdSynth(), benchmarker_("openclog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
 	{
 		bufferSizes[0] = 1;
 		for (size_t i = 1; i != 11; ++i)
@@ -86,7 +86,7 @@ public:
 	{
 		//Execute and average//
 		std::cout << "Executing test: cl_000_nullKernel" << std::endl;
-		openCL.setWorkspaceSize(1024, 32);
+		setLocalWorkspace(bufferLength_);
 		if (isWarmup)
 		{
 			openCL.enqueueKernel("cl_000_nullKernel");
@@ -344,7 +344,7 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_006_cpymemorykernel");
-		openCL.setWorkspaceSize(bufferLength_, 256);
+		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
@@ -404,7 +404,7 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_007_singlesample");
-		openCL.setWorkspaceSize(1, 1);
+		setLocalWorkspace(1);
 
 		float* hostSingleSample = new float;
 		float* checkSingleSample = new float;
@@ -452,7 +452,7 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_007_singlesample");
-		openCL.setWorkspaceSize(1, 1);
+		setLocalWorkspace(1);
 
 		float* hostSingleSample = new float;
 		float* checkSingleSample = new float;
@@ -513,8 +513,8 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_008_simplebufferprocessing");
-		openCL.setWorkspaceSize(bufferLength_, 256);
-
+		setLocalWorkspace(bufferLength_);
+		
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
 			srcMemoryBuffer[i] = 42.0;
@@ -573,10 +573,9 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_008_simplebufferprocessing");
-		openCL.setWorkspaceSize(bufferLength_, 256);
+		setLocalWorkspace(bufferLength_);
 
-		void* mappedMemoryOne;
-		void* mappedMemoryTwo;
+		void* mappedMemory;
 
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
@@ -595,29 +594,29 @@ public:
 		std::cout << "Executing test: cl_008_simplebufferprocessing" << std::endl;
 		if (isWarmup)
 		{
-			mappedMemoryOne = openCL.mapMemory("inputBuffer", bufferSize_);
-			memcpy(mappedMemoryOne, srcMemoryBuffer, bufferSize_);
-			openCL.unmapMemory("inputBuffer", mappedMemoryOne, bufferSize_);
+			mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
+			memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
+			openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
 
 			openCL.enqueueKernel("cl_008_simplebufferprocessing");
 
-			mappedMemoryTwo = openCL.mapMemory("outputBuffer", bufferSize_);
-			memcpy(dstMemoryBuffer, mappedMemoryTwo, bufferSize_);
-			openCL.unmapMemory("outputBuffer", mappedMemoryTwo, bufferSize_);
+			mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
+			memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			benchmarker_.startTimer("cl_008_simplebufferprocessing");
 
-			mappedMemoryOne = openCL.mapMemory("inputBuffer", bufferSize_);
-			memcpy(mappedMemoryOne, srcMemoryBuffer, bufferSize_);
-			openCL.unmapMemory("inputBuffer", mappedMemoryOne, bufferSize_);
+			mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
+			memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
+			openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
 
 			openCL.enqueueKernel("cl_008_simplebufferprocessing");
 
-			mappedMemoryTwo = openCL.mapMemory("outputBuffer", bufferSize_);
-			memcpy(dstMemoryBuffer, mappedMemoryTwo, bufferSize_);
-			openCL.unmapMemory("outputBuffer", mappedMemoryTwo, bufferSize_);
+			mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
+			memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
 
 			benchmarker_.pauseTimer("cl_008_simplebufferprocessing");
 		}
@@ -650,7 +649,7 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_009_complexbufferprocessing");
-		openCL.setWorkspaceSize(bufferLength_, 256);
+		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
@@ -715,7 +714,7 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_009_complexbufferprocessing");
-		openCL.setWorkspaceSize(bufferLength_, 256);
+		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
@@ -790,54 +789,76 @@ public:
 	void cl_010_simplebuffersynthesis(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		float* srcMemoryBuffer = new float[bufferLength_];
+		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		openCL.createKernel("cl_010_simplebuffersynthesis");
+		setLocalWorkspace(bufferLength_);
+
+		int* sampleRate = new int;
+		*sampleRate = 44100;
+		float* frequency = new float;
+		*frequency = 1400.0;
+		float* outputBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
-			srcMemoryBuffer[i] = 42.0;
-		float* dstMemoryBuffer = new float[bufferLength_];
-		for (size_t i = 0; i != bufferLength_; ++i)
-			dstMemoryBuffer[i] = 0.0;
+			outputBuffer[i] = 42.0;
+
+		openCL.createBuffer("sampleRate", CL_MEM_READ_WRITE, sizeof(int));
+		openCL.createBuffer("frequency", CL_MEM_READ_WRITE, sizeof(float));
+		openCL.createBuffer("outputBuffer", CL_MEM_READ_WRITE, bufferSize_);
+		//openCL.createBuffer("localBuffer", CL_MEM_READ_WRITE, bufferSize_);
+
+		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "sampleRate", 0, sizeof(cl_mem));
+		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "frequency", 1, sizeof(cl_mem));
+		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "outputBuffer", 2, sizeof(cl_mem));
+
+		openCL.writeBuffer("sampleRate", sizeof(int), sampleRate);
+		openCL.writeBuffer("frequency", sizeof(float), frequency);
 
 		//Execute and average//
 		std::cout << "Executing test: cl_010_simplebuffersynthesis" << std::endl;
 		if (isWarmup)
 		{
-
+			openCL.enqueueKernel("cl_010_simplebuffersynthesis");
+			openCL.waitKernel();
+			openCL.readBuffer("outputBuffer", bufferSize_, outputBuffer);
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			benchmarker_.startTimer("cl_010_simplebuffersynthesis");
 
-
+			openCL.enqueueKernel("cl_010_simplebuffersynthesis");
+			openCL.waitKernel();
+			openCL.readBuffer("outputBuffer", bufferSize_, outputBuffer);
 
 			benchmarker_.pauseTimer("cl_010_simplebuffersynthesis");
 		}
 		benchmarker_.elapsedTimer("cl_010_simplebuffersynthesis");
 
-		//Check contents//
-		bool isSuccessful = true;
-		for (uint32_t i = 0; i != bufferLength_; ++i)
-		{
-			if (srcMemoryBuffer[i] != dstMemoryBuffer[i])
-			{
-				isSuccessful = false;
-				break;
-			}
-		}
-		std::cout << "cl_010_simplebuffersynthesis successful: " << isSuccessful << std::endl << std::endl;
-
-		openCL.deleteBuffer("srcBuffer");
-		openCL.deleteBuffer("dstBuffer");
-
-		delete srcMemoryBuffer;
-		delete dstMemoryBuffer;
+		//Save audio to file for inspection//
+		outputAudioFile("cl_010_simplebuffersynthesis.wav", outputBuffer, bufferLength_);
+		std::cout << "cl_010_simplebuffersynthesis successful: Inspect audio log \"cl_010_simplebuffersynthesis.wav\"" << std::endl << std::endl;
+		
+		openCL.deleteBuffer("sampleRate");
+		openCL.deleteBuffer("frequency");
+		openCL.deleteBuffer("outputBuffer");
+		
+		delete sampleRate;
+		delete frequency;
+		delete outputBuffer;
 	}
 	void cl_011_complexbuffersynthesis(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		float* inBuf = new float[bufferSize_];
-		float* outBuf = new float[bufferSize_];
-		for (size_t i = 0; i != bufferSize_; ++i)
-			inBuf[i] = 0.5;
+		uint32_t numSamplesComputed = 0;
+		float* inBuf = new float[bufferLength_];
+		float* outBuf = new float[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+		{
+			if(i < 120)
+				inBuf[i] = 0.5;
+			else
+				inBuf[i] = 0.0;
+		}
+		float* soundBuffer = new float[bufferLength_ * 2];
 
 		OpenCL_FDTD_Arguments args;
 		args.isDebug = false;
@@ -853,7 +874,7 @@ public:
 		args.excitationPosition[1] = 32;
 		args.workGroupDimensions[0] = 16;
 		args.workGroupDimensions[1] = 16;
-		args.bufferSize = bufferSize_;
+		args.bufferSize = bufferLength_;
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
 		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args);
 
@@ -861,21 +882,23 @@ public:
 		std::cout << "Executing test: cl_011_complexbuffersynthesis" << std::endl;
 		if (isWarmup)
 		{
-			fdtdSynth.fillBuffer(bufferSize_, inBuf, outBuf);
+			fdtdSynth.fillBuffer(bufferLength_, inBuf, outBuf);
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			benchmarker_.startTimer("cl_011_complexbuffersynthesis");
 
-			fdtdSynth.fillBuffer(bufferSize_, inBuf, outBuf);
+			fdtdSynth.fillBuffer(bufferLength_, inBuf, outBuf);
 
 			benchmarker_.pauseTimer("cl_011_complexbuffersynthesis");
 		}
 		benchmarker_.elapsedTimer("cl_011_complexbuffersynthesis");
 
-		//Check contents//
-		bool isSuccessful = true;
-		std::cout << "cl_011_complexbuffersynthesis successful: " << isSuccessful << std::endl << std::endl;
+		//Save audio to file for inspection//
+		for (int j = 0; j != bufferLength_; ++j)
+			soundBuffer[j] = outBuf[j];
+		outputAudioFile("cl_011_complexbuffersynthesis.wav", soundBuffer, bufferLength_);
+		std::cout << "cl_011_complexbuffersynthesis successful: Inspect audio log \"cl_011_complexbuffersynthesis.wav\"" << std::endl << std::endl;
 
 		//Cleanup//
 		delete inBuf;
@@ -887,10 +910,9 @@ public:
 		//Test preperation//
 		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
 		openCL.createKernel("cl_012_interruptedbufferprocessing");
-		openCL.setWorkspaceSize(bufferLength_, 256);
+		setLocalWorkspace(bufferLength_);
 
-		void* mappedMemoryOne;
-		void* mappedMemoryTwo;
+		void* mappedMemory;
 
 		bool isBufferCorrect = true;		//Variable indicating if buffer requires recalculating.
 		std::default_random_engine generator;
@@ -912,30 +934,30 @@ public:
 		std::cout << "Executing test: cl_012_interruptedbufferprocessing" << std::endl;
 		if (isWarmup)
 		{
-			mappedMemoryOne = openCL.mapMemory("inputBuffer", bufferSize_);
-			memcpy(mappedMemoryOne, srcMemoryBuffer, bufferSize_);
-			openCL.unmapMemory("inputBuffer", mappedMemoryOne, bufferSize_);
+			mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
+			memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
+			openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
 
 			openCL.enqueueKernel("cl_012_interruptedbufferprocessing");
 
-			mappedMemoryTwo = openCL.mapMemory("outputBuffer", bufferSize_);
-			memcpy(dstMemoryBuffer, mappedMemoryTwo, bufferSize_);
-			openCL.unmapMemory("outputBuffer", mappedMemoryTwo, bufferSize_);
+			mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
+			memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
 		}
 		for (int32_t i = 0; i != aN; ++i)
 		{
 			benchmarker_.startTimer("cl_012_interruptedbufferprocessing");
 
-			mappedMemoryOne = openCL.mapMemory("inputBuffer", bufferSize_);
-			memcpy(mappedMemoryOne, srcMemoryBuffer, bufferSize_);
-			openCL.unmapMemory("inputBuffer", mappedMemoryOne, bufferSize_);
+			mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
+			memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
+			openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
 
 			openCL.enqueueKernel("cl_012_interruptedbufferprocessing");
 			openCL.waitKernel();
 
-			mappedMemoryTwo = openCL.mapMemory("outputBuffer", bufferSize_);
-			memcpy(dstMemoryBuffer, mappedMemoryTwo, bufferSize_);
-			openCL.unmapMemory("outputBuffer", mappedMemoryTwo, bufferSize_);
+			mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
+			memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
 			openCL.waitKernel();
 
 			benchmarker_.pauseTimer("cl_012_interruptedbufferprocessing");
@@ -1066,7 +1088,9 @@ public:
 			benchmarker_.elapsedTimer("totalTime");
 			benchmarker_.elapsedTimer("bufferTime");
 
-			outputAudioFile("test.wav", soundBuffer, sampleRate);	//Save audio to file for inspection.
+			//Save audio to file for inspection//
+			outputAudioFile("bidirectionalComplexSynthesis.wav", soundBuffer, sampleRate);
+			std::cout << "bidirectionalComplexSynthesis successful: Inspect audio log \"bidirectionalComplexSynthesis.wav\"" << std::endl << std::endl;
 
 			numSamplesComputed = 0;
 
@@ -1116,10 +1140,21 @@ public:
 		delete checkBuffer;
 	}
 
+	void setLocalWorkspace(uint32_t aGlobalSize)
+	{
+		uint32_t maxLocalWorkspace = openCL.getMaxLocalWorkspace();
+		uint32_t localWorkspace = aGlobalSize > maxLocalWorkspace ? maxLocalWorkspace : aGlobalSize;
+		openCL.setWorkspaceSize(aGlobalSize, localWorkspace);
+	}
 	void setBufferSize(uint32_t aBufferSize)
 	{
 		bufferSize_ = aBufferSize;
 		bufferLength_ = bufferSize_ / sizeof(datatype);
+	}
+	void setBufferLength(uint32_t aBufferLength)
+	{
+		bufferLength_ = aBufferLength;
+		bufferSize_ = bufferLength_ * sizeof(datatype);
 	}
 
 	static void printAvailableDevices()
