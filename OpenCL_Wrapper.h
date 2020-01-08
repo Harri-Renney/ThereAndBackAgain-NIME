@@ -83,22 +83,9 @@ public:
 		uint32_t repetitions = 1;
 		uint32_t memorySize = GIGA_BYTE;
 
-		//Build the program - Define kernel constants//
-		char options[1024];
-		sprintf(options,
-			" -cl-fast-relaxed-math"
-			//" -cl-single-precision-constant"
-			//""
-		);
-
 		//Initialise workgroup dimensions//
 		globalws_ = cl::NDRange(globalSize);
 		localws_ = cl::NDRange(256);
-
-		//SeqMemoryTest0//
-		createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", options);
-		createKernel("cl_000_nullKernel");
-		createKernel("cl_006_cpymemorykernel");
 	}
 
 	void createKernelProgram(const std::string aSourcePath, const char options[])
@@ -153,6 +140,10 @@ public:
 	void setKernelArgument(const std::string aKernelName, const std::string aBufferName, int aIndex, int aSize)
 	{
 		(*kernels_[aKernelName]).setArg(aIndex, aSize, buffers_[aBufferName]);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
+	}
+	void setKernelArgument(const std::string aKernelName, void* aValue, int aIndex, int aSize)
+	{
+		(*kernels_[aKernelName]).setArg(aIndex, aSize, aValue);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
 	}
 
 	void enqueueKernel(const std::string aKernelName)

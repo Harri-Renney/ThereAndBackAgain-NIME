@@ -12,11 +12,11 @@ int main()
 	// 0,0 = CPU
 	// 0,1 = Intel GPU
 	// 1,0 = AMD GPU
-	GPUOverhead_Benchmarks clBenchmark(1,0);
+	GPUOverhead_Benchmarks clBenchmark(0,0);
 	
 	//@ToDo - Sort out way of dynamically working out localworkgroupsize from buffer size//
 	//clBenchmark.setBufferSize(GPUOverhead_Benchmarks::MEGA_BYTE);
-	//clBenchmark.setBufferSize(128 * sizeof(float));
+	//clBenchmark.setBufferSize(1024 * sizeof(float));
 	//clBenchmark.setBufferSize(88200 * sizeof(float));
 	clBenchmark.setBufferSize(44100 * sizeof(float));
 
@@ -34,7 +34,7 @@ int main()
 	clBenchmark.cl_009_complexbufferprocessing(1000, true);
 	clBenchmark.cl_009_complexbufferprocessingmapping(1000, true);
 	clBenchmark.cl_010_simplebuffersynthesis(1000, true);
-	clBenchmark.cl_011_complexbuffersynthesis(10, true);
+	//clBenchmark.cl_011_complexbuffersynthesis(10, true);
 	clBenchmark.cl_012_interruptedbufferprocessing(1000, true);
 	
 	//clBenchmark.runUnidirectionalBenchmarks(10, 44100);
