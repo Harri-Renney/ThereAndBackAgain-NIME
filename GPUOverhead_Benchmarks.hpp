@@ -80,6 +80,24 @@ public:
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
 		new(&fdtdSynth) OpenCL_FDTD(args);
 		//fdtdSynth = OpenCL_FDTD();
+
+		//Build the program - Define kernel constants//
+		char options[1024];
+		sprintf(options,
+			" -cl-fast-relaxed-math"
+			//" -cl-single-precision-constant"
+			//""
+		);
+
+		//SeqMemoryTest0//
+		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", options);
+		openCL.createKernel("cl_000_nullKernel");
+		openCL.createKernel("cl_006_cpymemorykernel");
+		openCL.createKernel("cl_007_singlesample");
+		openCL.createKernel("cl_008_simplebufferprocessing");
+		openCL.createKernel("cl_009_complexbufferprocessing");
+		openCL.createKernel("cl_010_simplebuffersynthesis");
+		openCL.createKernel("cl_012_interruptedbufferprocessing");
 	}
 
 	void cl_000_nullKernel(size_t aN, bool isWarmup)
@@ -342,8 +360,8 @@ public:
 	void cl_006_cpymemorykernel(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_006_cpymemorykernel");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_006_cpymemorykernel");
 		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
@@ -402,8 +420,8 @@ public:
 	void cl_007_singlesample(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_007_singlesample");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_007_singlesample");
 		setLocalWorkspace(1);
 
 		float* hostSingleSample = new float;
@@ -450,8 +468,8 @@ public:
 	void cl_007_singlesamplemapping(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_007_singlesample");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_007_singlesample");
 		setLocalWorkspace(1);
 
 		float* hostSingleSample = new float;
@@ -511,8 +529,8 @@ public:
 	void cl_008_simplebufferprocessing(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_008_simplebufferprocessing");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_008_simplebufferprocessing");
 		setLocalWorkspace(bufferLength_);
 		
 		float* srcMemoryBuffer = new float[bufferLength_];
@@ -571,8 +589,8 @@ public:
 	void cl_008_simplebufferprocessingmapping(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_008_simplebufferprocessing");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_008_simplebufferprocessing");
 		setLocalWorkspace(bufferLength_);
 
 		void* mappedMemory;
@@ -647,8 +665,8 @@ public:
 	void cl_009_complexbufferprocessing(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_009_complexbufferprocessing");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_009_complexbufferprocessing");
 		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
@@ -712,8 +730,8 @@ public:
 	void cl_009_complexbufferprocessingmapping(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_009_complexbufferprocessing");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_009_complexbufferprocessing");
 		setLocalWorkspace(bufferLength_);
 
 		float* srcMemoryBuffer = new float[bufferLength_];
@@ -789,29 +807,21 @@ public:
 	void cl_010_simplebuffersynthesis(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_010_simplebuffersynthesis");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_010_simplebuffersynthesis");
 		setLocalWorkspace(bufferLength_);
 
-		int* sampleRate = new int;
-		*sampleRate = 44100;
-		float* frequency = new float;
-		*frequency = 1400.0;
+		const int sampleRate = 44100;
+		const float frequency = 1400.0;
 		float* outputBuffer = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
 			outputBuffer[i] = 42.0;
 
-		openCL.createBuffer("sampleRate", CL_MEM_READ_WRITE, sizeof(int));
-		openCL.createBuffer("frequency", CL_MEM_READ_WRITE, sizeof(float));
 		openCL.createBuffer("outputBuffer", CL_MEM_READ_WRITE, bufferSize_);
-		//openCL.createBuffer("localBuffer", CL_MEM_READ_WRITE, bufferSize_);
 
-		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "sampleRate", 0, sizeof(cl_mem));
-		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "frequency", 1, sizeof(cl_mem));
+		openCL.setKernelArgument("cl_010_simplebuffersynthesis", (void*)&sampleRate, 0, sizeof(float));
+		openCL.setKernelArgument("cl_010_simplebuffersynthesis", (void*)&frequency, 1, sizeof(int));
 		openCL.setKernelArgument("cl_010_simplebuffersynthesis", "outputBuffer", 2, sizeof(cl_mem));
-
-		openCL.writeBuffer("sampleRate", sizeof(int), sampleRate);
-		openCL.writeBuffer("frequency", sizeof(float), frequency);
 
 		//Execute and average//
 		std::cout << "Executing test: cl_010_simplebuffersynthesis" << std::endl;
@@ -837,12 +847,9 @@ public:
 		outputAudioFile("cl_010_simplebuffersynthesis.wav", outputBuffer, bufferLength_);
 		std::cout << "cl_010_simplebuffersynthesis successful: Inspect audio log \"cl_010_simplebuffersynthesis.wav\"" << std::endl << std::endl;
 		
-		openCL.deleteBuffer("sampleRate");
-		openCL.deleteBuffer("frequency");
+		//Cleanup//
 		openCL.deleteBuffer("outputBuffer");
 		
-		delete sampleRate;
-		delete frequency;
 		delete outputBuffer;
 	}
 	void cl_011_complexbuffersynthesis(size_t aN, bool isWarmup)
@@ -853,7 +860,8 @@ public:
 		float* outBuf = new float[bufferLength_];
 		for (size_t i = 0; i != bufferLength_; ++i)
 		{
-			if(i < 120)
+			//Create initial impulse as excitation//
+			if(i < bufferLength_ / 1000)
 				inBuf[i] = 0.5;
 			else
 				inBuf[i] = 0.0;
@@ -908,8 +916,8 @@ public:
 	void cl_012_interruptedbufferprocessing(size_t aN, bool isWarmup)
 	{
 		//Test preperation//
-		openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-		openCL.createKernel("cl_012_interruptedbufferprocessing");
+		//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
+		//openCL.createKernel("cl_012_interruptedbufferprocessing");
 		setLocalWorkspace(bufferLength_);
 
 		void* mappedMemory;
