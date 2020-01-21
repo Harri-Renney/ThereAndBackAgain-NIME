@@ -5,6 +5,14 @@ void cl_000_nullKernel(__global char* empty)
 }
 
 __kernel
+void cl_testkernel(__global float* buffer)
+{
+	uint idx = get_global_id(0);
+	
+	buffer[idx] = buffer[idx] * 0.5;
+}
+
+__kernel
 void cl_006_cpymemorykernel(__global float* srcBuffer, __global float* dstBuffer)
 {
 	uint idx = get_global_id(0);

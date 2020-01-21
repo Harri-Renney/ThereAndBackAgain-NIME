@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "GPUOverhead_Benchmarks.hpp"
-#include "OpenCL_Wrapper.h"
-#include "CUDA_Wrapper.hpp"
+#include "GPU_Overhead_Benchmarks_OpenCL.hpp"
+#include "GPU_Overhead_Benchmarks_CUDA.hpp"
 
 int main()
 {
@@ -12,38 +11,29 @@ int main()
 	// 0,0 = CPU
 	// 0,1 = Intel GPU
 	// 1,0 = AMD GPU
-	GPUOverhead_Benchmarks clBenchmark(1,0);
+	GPU_Overhead_Benchmarks_OpenCL clBenchmark(0,0);
 	
 	//@ToDo - Sort out way of dynamically working out localworkgroupsize from buffer size//
-	clBenchmark.setBufferSize(GPUOverhead_Benchmarks::MEGA_BYTE);
+	clBenchmark.setBufferSize(GPU_Overhead_Benchmarks_OpenCL::MEGA_BYTE);
+	//clBenchmark.setBufferLength(44100);
 	//clBenchmark.setBufferSize(1024 * sizeof(float));
 	//clBenchmark.setBufferSize(88200 * sizeof(float));
-	//clBenchmark.setBufferSize(44100 * sizeof(float));
 
-	//clBenchmark.cl_000_nullKernel(1000, true);
-	//clBenchmark.cl_001_CPUtoGPU(1000, true);
-	//clBenchmark.cl_002_GPUtoCPU(1000, true);
-	//clBenchmark.cl_003_CPUtoGPUtoCPU(1000, true);
-	//clBenchmark.cl_004_mappedmemory(1000, true);
-	//clBenchmark.cl_005_cpymemory(1000, true);
-	//clBenchmark.cl_006_cpymemorykernel(1000, true);
-	//clBenchmark.cl_007_singlesample(1000, true);
-	//clBenchmark.cl_007_singlesamplemapping(1000, true);
-	clBenchmark.cl_008_simplebufferprocessing(1000, true);
-	//clBenchmark.cl_008_simplebufferprocessingmapping(1000, true);
-	//clBenchmark.cl_009_complexbufferprocessing(1000, true);
-	//clBenchmark.cl_009_complexbufferprocessingmapping(1000, true);
-	//clBenchmark.cl_010_simplebuffersynthesis(1000, true);
-	//clBenchmark.cl_011_complexbuffersynthesis(10, true);
-	//clBenchmark.cl_012_interruptedbufferprocessing(1000, true);
+	clBenchmark.cl_cputogpu_standard(1000, true);
+	clBenchmark.cl_cputogpu_mappedmemory(1000, true);
 	
 	//clBenchmark.runUnidirectionalBenchmarks(10, 44100);
 	//clBenchmark.runBidirectionalBenchmarks(1, 44100);
 	//clBenchmark.bidirectionalComplexSynthesis(1, 44100);
 	//
 	//clBenchmark.writeToGPUMapped(1000);
+
+	//clBenchmark.cl_complexbuffersynthesis_standard(10, true);
+	//clBenchmark.cl_complexbuffersynthesis_mappedmemory(10, true);
+
+	//clBenchmark.runGeneralBenchmarks(10);
 	
-	//CUDA_Wrapper::printAvailableDevices();
+	GPU_Overhead_Benchmarks_CUDA::printAvailableDevices();
 
 	//Check CUDA support and device availability//
 	bool isCUDA = true;
@@ -59,7 +49,7 @@ int main()
 		isCUDA = false;
 	}
 
-	int numCudaDevices = CUDA_Wrapper::isCudaAvailable();
+	int numCudaDevices = GPU_Overhead_Benchmarks_CUDA::isCudaAvailable();
 	std::cout << "Number of available CUDA devices: " << numCudaDevices << std::endl;
 	if(numCudaDevices == 0)
 	{
@@ -71,13 +61,21 @@ int main()
 	{
 		std::cout << "CUDA device and support detected." << std::endl;
 		std::cout << "Beginning CUDA benchmarking" << std::endl << std::endl;
-		CUDA_Wrapper cudaBenchmark = CUDA_Wrapper();
-		cudaBenchmark.cuda_000_nullkernel(10, true);
-		cudaBenchmark.cuda_001_CPUtoGPU(10, true);
-		cudaBenchmark.cuda_002_GPUtoCPU(10, true);
-		cudaBenchmark.cuda_003_CPUtoGPUtoCPU(10, true);
-		cudaBenchmark.cuda_005_cpymemory(10, true);
-		cudaBenchmark.cuda_006_cpymemorykernel(10, true);
+		GPU_Overhead_Benchmarks_CUDA cudaBenchmark = GPU_Overhead_Benchmarks_CUDA();
+		cudaBenchmark.setBufferSize(GPU_Overhead_Benchmarks_OpenCL::GIGA_BYTE);
+		//cudaBenchmark.setBufferLength(44100);
+		//cudaBenchmark.cuda_000_nullkernel(10, true);
+		//cudaBenchmark.cuda_001_CPUtoGPU(1000, true);
+		//cudaBenchmark.cuda_002_GPUtoCPU(10, true);
+		//cudaBenchmark.cuda_003_CPUtoGPUtoCPU(10, true);
+		//cudaBenchmark.cuda_005_cpymemory(10, true);
+		//cudaBenchmark.cuda_006_cpymemorykernel(10, true);
+		//cudaBenchmark.cuda_008_simplebufferprocessing(1000, true);
+		//cudaBenchmark.cuda_011_complexbuffersynthesis(1, true);
+
+		cudaBenchmark.cuda_cputogpu_standard(10, true);
+		cudaBenchmark.cuda_cputogpu_mappedmemory(10, true);
+		cudaBenchmark.cuda_cputogpu_pinned(10, true);
 	}
 	else
 		std::cout << "CUDA device or support no present to benchmark CUDA" << std::endl;

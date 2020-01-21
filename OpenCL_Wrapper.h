@@ -9,21 +9,6 @@ private:
 	static const uint32_t MEGA_BYTE = 1024 * 1024;
 	static const uint32_t KILO_BYTE = 1024;
 
-	//OpenCL objects//
-	cl::Context context_;
-	cl::Device device_;
-	cl::CommandQueue commandQueue_;
-	cl::Program kernelProgram_;
-	std::map<std::string, cl::Kernel*> kernels_;
-	cl::Event kernelBenchmark_;
-	cl::NDRange globalws_;
-	cl::NDRange localws_;
-
-	std::map<std::string, cl::Buffer*> buffers_;
-
-	std::map<std::string, cl::Image*> images_;
-	std::map<std::string, cl::Sampler*> imageSamplers_;
-
 	//OpenGL Inter-operability//
 	cl::Context contextOpenGL_;
 	uint32_t vertexBufferObject_;
@@ -32,11 +17,14 @@ private:
 
 	cl_int errorStatus_ = 0;
 public:
-	OpenCL_Wrapper(uint32_t aPlatform, uint32_t aDevice)
+	OpenCL_Wrapper()
 	{
-		init(aPlatform, aDevice);
 	}
-	void init(uint32_t aPlatform, uint32_t aDevice)
+	OpenCL_Wrapper(uint32_t aPlatformIdx, uint32_t aDeviceIdx, cl::Context& aContext, cl::Device& aDevice, cl::CommandQueue& aCommandQueue)
+	{
+		init(aPlatformIdx, aDeviceIdx, aContext, aDevice, aCommandQueue);
+	}
+	void init(uint32_t aPlatformIdx, uint32_t aDeviceIdx, cl::Context& aContext, cl::Device& aDevice, cl::CommandQueue& aCommandQueue)
 	{
 		/////////////////////////////////////
 		//Step 1: Set up OpenCL environment//
@@ -50,45 +38,25 @@ public:
 
 		//Create contex properties for first platform//
 		std::vector<cl_context_properties > contextProperties;
-		if (isOpenGL)
-		{
-			std::cout << "Creating OpenCL context with OpenGL Interop." << std::endl;
-			contextProperties.push_back(CL_CONTEXT_PLATFORM); contextProperties.push_back((cl_context_properties)(platforms[aPlatform])());
-			contextProperties.push_back(CL_GL_CONTEXT_KHR); contextProperties.push_back((intptr_t)wglGetCurrentContext());
-			contextProperties.push_back(CL_WGL_HDC_KHR); contextProperties.push_back((intptr_t)wglGetCurrentDC());
-			contextProperties.push_back(0);
-		}
-		else
-		{
-			std::cout << "Creating OpenCL context without OpenGL Interop." << std::endl;
-			contextProperties.push_back(CL_CONTEXT_PLATFORM);
-			contextProperties.push_back((cl_context_properties)(platforms[aPlatform])());
-			contextProperties.push_back(0);
-		}
+		std::cout << "Creating OpenCL context without OpenGL Interop." << std::endl;
+		contextProperties.push_back(CL_CONTEXT_PLATFORM);
+		contextProperties.push_back((cl_context_properties)(platforms[aPlatformIdx])());
+		contextProperties.push_back(0);
 
 		//Create context context using platform for GPU device//
-		context_ = cl::Context(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, contextProperties.data());
+		aContext = cl::Context(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, contextProperties.data());
 
 		//Get device list from context//
-		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
-		device_ = devices[aDevice];
+		std::vector<cl::Device> devices = aContext.getInfo<CL_CONTEXT_DEVICES>();
+		aDevice = devices[aDeviceIdx];
 
 		//Create command queue for first device - Profiling enabled//
-		commandQueue_ = cl::CommandQueue(context_, device_, CL_QUEUE_PROFILING_ENABLE, &errorStatus_);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
+		aCommandQueue = cl::CommandQueue(aContext, aDevice, CL_QUEUE_PROFILING_ENABLE, &errorStatus_);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
 		if (errorStatus_)
 			std::cout << "ERROR creating command queue for device. Status code: " << errorStatus_ << std::endl;
-
-		//Define benchmark constants//
-		uint32_t globalSize = 256;
-		uint32_t repetitions = 1;
-		uint32_t memorySize = GIGA_BYTE;
-
-		//Initialise workgroup dimensions//
-		globalws_ = cl::NDRange(globalSize);
-		localws_ = cl::NDRange(256);
 	}
 
-	void createKernelProgram(const std::string aSourcePath, const char options[])
+	void createKernelProgram(cl::Context& aContext, cl::Program& aKernelProgram, const std::string aSourcePath, const char options[])
 	{
 		//Read in program source - I'm going to go for reading from compiled object instead//
 		std::ifstream sourceFileName(aSourcePath.c_str());
@@ -100,91 +68,80 @@ public:
 		cl::Program::Sources source(programSources);	//Apparently this takes a vector of strings as the program source.
 
 		//Create program from source code//
-		kernelProgram_ = cl::Program(context_, source, &errorStatus_);
+		aKernelProgram = cl::Program(aContext, source, &errorStatus_);
 		if (errorStatus_)
 			std::cout << "ERROR creating program from source. Status code: " << errorStatus_ << std::endl;
 
 		//Build program//
-		kernelProgram_.build(options);
+		aKernelProgram.build(options);
 	}
-	void createKernel(const std::string aKernelName)
+	void createKernel(cl::Context& aContext, cl::Program& aKernelProgram, cl::Kernel& aKernel, std::string aKernelName)
 	{
 		//Create kernel program on device//
-		cl::Kernel kernel = cl::Kernel(kernelProgram_, aKernelName.c_str(), &errorStatus_);
-		kernels_.insert(std::make_pair(aKernelName, new cl::Kernel(kernelProgram_, aKernelName.c_str(), &errorStatus_)));
+		aKernel = cl::Kernel(aKernelProgram, aKernelName.c_str(), &errorStatus_);
 		if (errorStatus_)
 			std::cout << "ERROR creating kernel. Status code: " << errorStatus_ << std::endl;
 	}
 
 	// . //
-	void createBuffer(std::string aBufferName, int aMemFlags, unsigned int aBufferSize)
+	void createBuffer(cl::Context& aContext, cl::Buffer& aBuffer, int aMemFlags, unsigned int aBufferSize)
 	{
-		buffers_.insert(std::make_pair(aBufferName, new cl::Buffer(context_, aMemFlags, aBufferSize)));
+		aBuffer = cl::Buffer(aContext, aMemFlags, aBufferSize);
 	}
-	void writeBuffer(std::string aBufferName, unsigned int aBufferSize, void* input)
+	void writeBuffer(cl::CommandQueue& aCommandQueue, cl::Buffer& aBuffer, unsigned int aBufferSize, void* input)
 	{
-		commandQueue_.enqueueWriteBuffer(*buffers_[aBufferName], CL_TRUE, 0, aBufferSize, input);
+		aCommandQueue.enqueueWriteBuffer(aBuffer, CL_TRUE, 0, aBufferSize, input);
 	}
-	void readBuffer(std::string aBufferName, unsigned int aBufferSize, void* output)
+	void readBuffer(cl::CommandQueue& aCommandQueue, cl::Buffer& aBuffer, unsigned int aBufferSize, void* output)
 	{
-		commandQueue_.enqueueReadBuffer(*buffers_[aBufferName], CL_TRUE, 0, aBufferSize, output);
+		aCommandQueue.enqueueReadBuffer(aBuffer, CL_TRUE, 0, aBufferSize, output);
 	}
-	void deleteBuffer(std::string aBufferName)
+	void deleteBuffer(cl::Buffer& aBuffer)
 	{
-		cl::Buffer* buf = buffers_[aBufferName];
-		clReleaseMemObject((*buf)());
-		buffers_.erase(aBufferName);
+		clReleaseMemObject(aBuffer());
 	}
 
 	// . //
-	void setKernelArgument(const std::string aKernelName, const std::string aBufferName, int aIndex, int aSize)
+	void setKernelArgument(cl::Kernel& aKernel, cl::Buffer& aBuffer, int aIndex, int aSize)
 	{
-		(*kernels_[aKernelName]).setArg(aIndex, aSize, buffers_[aBufferName]);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
+		aKernel.setArg(aIndex, aSize, &aBuffer);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
 	}
-	void setKernelArgument(const std::string aKernelName, void* aValue, int aIndex, int aSize)
+	void setKernelArgument(cl::Kernel& aKernel, void* aValue, int aIndex, int aSize)
 	{
-		(*kernels_[aKernelName]).setArg(aIndex, aSize, aValue);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
+		aKernel.setArg(aIndex, aSize, aValue);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
 	}
 
-	void enqueueKernel(const std::string aKernelName)
+	void enqueueKernel(cl::CommandQueue& aCommandQueue, cl::Kernel& aKernel, cl::NDRange aGlobalSize, cl::NDRange aLocalSize)
 	{
-		commandQueue_.enqueueNDRangeKernel(*kernels_[aKernelName], cl::NullRange/*globaloffset*/, globalws_, localws_, NULL, &kernelBenchmark_);
+		aCommandQueue.enqueueNDRangeKernel(aKernel, cl::NullRange/*globaloffset*/, aGlobalSize, aLocalSize, NULL, NULL);
+
+		//Add OpenCL profiling//
+		//aCommandQueue.enqueueNDRangeKernel(aKernel, cl::NullRange/*globaloffset*/, aGlobalSize, aLocalSize, NULL, &kernelBenchmark_);
 		//kernelBenchmark_.wait();
 	}
 
-	void enqueueCopyBuffer(const std::string aSrcBuffer, const std::string aDstBuffer, const uint32_t aSize)
+	void enqueueCopyBuffer(cl::CommandQueue& aCommandQueue, cl::Buffer& aSrcBuffer, cl::Buffer& aDstBuffer, const uint32_t aSize)
 	{
-		commandQueue_.enqueueCopyBuffer((*buffers_[aSrcBuffer]), (*buffers_[aDstBuffer]), 0, 0, aSize, NULL, NULL);
+		aCommandQueue.enqueueCopyBuffer(aSrcBuffer, aDstBuffer, 0, 0, aSize, NULL, NULL);
 	}
 
-	void* mapMemory(const std::string aBuffer, const uint32_t aSize)
+	void* mapMemory(cl::CommandQueue& aCommandQueue, cl::Buffer& aBuffer, cl_mem_flags aFlags, const uint32_t aSize)
 	{
-		return commandQueue_.enqueueMapBuffer((*buffers_[aBuffer]), true, NULL, 0, aSize, NULL, NULL, &errorStatus_);
+		return aCommandQueue.enqueueMapBuffer(aBuffer, true, aFlags, 0, aSize, NULL, NULL, &errorStatus_);
 	}
-	void unmapMemory(const std::string aBuffer, void* aPtr, const uint32_t aSize)
+	void unmapMemory(cl::CommandQueue& aCommandQueue, cl::Buffer& aBuffer, void* aPtr, const uint32_t aSize)
 	{
-		commandQueue_.enqueueUnmapMemObject((*buffers_[aBuffer]), aPtr, NULL, NULL);
-	}
-
-	void waitKernel()
-	{
-		commandQueue_.finish();
+		aCommandQueue.enqueueUnmapMemObject(aBuffer, aPtr, NULL, NULL);
 	}
 
-	void setWorkspaceSize(uint32_t aGlobalSize, uint32_t aLocalSize)
+	void waitCommandQueue(cl::CommandQueue& aCommandQueue)
 	{
-		globalws_ = cl::NDRange(aGlobalSize, 1, 1);
-		localws_ = cl::NDRange(aLocalSize, 1, 1);
-	}
-	void setWorkspaceSize(cl::NDRange aGlobalSize, cl::NDRange aLocalSize)
-	{
-		globalws_ = aGlobalSize;
-		localws_ = aLocalSize;
+		aCommandQueue.finish();
 	}
 
-	uint32_t getMaxLocalWorkspace()
+	uint32_t getMaxLocalWorkspace(cl::Device aDevice)
 	{
-		return device_.getInfo< CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+		return aDevice.getInfo< CL_DEVICE_MAX_WORK_GROUP_SIZE>();
 	}
 
 	//Static Functions//

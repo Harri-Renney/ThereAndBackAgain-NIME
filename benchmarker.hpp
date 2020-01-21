@@ -41,6 +41,16 @@ public:
 		++cntTimersAverage[aTimer];
 		startTimers[aTimer] = std::chrono::steady_clock::now();
 	}
+	void waitTimer(const std::string aTimer)
+	{
+		//Calculate total time//
+		endTimers[aTimer] = std::chrono::steady_clock::now();
+		totalTimers[aTimer] += endTimers[aTimer] - startTimers[aTimer];
+	}
+	void resumeTimer(const std::string aTimer)
+	{
+		startTimers[aTimer] = std::chrono::steady_clock::now();
+	}
 	void pauseTimer(const std::string aTimer)
 	{
 		//Calculate total time//

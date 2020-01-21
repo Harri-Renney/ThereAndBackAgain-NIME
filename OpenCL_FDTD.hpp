@@ -92,6 +92,8 @@ private:
 
 	const std::string path_;
 
+	bool isOptimized;
+
 public:
 	OpenCL_FDTD() :
 		modelWidth_(0),
@@ -104,9 +106,10 @@ public:
 		output_(0),
 		excitation_(0),
 		bufferSize_(0),
-		bufferRotationIndex_(0)
+		bufferRotationIndex_(0),
+		isOptimized(0)
 	{}
-	OpenCL_FDTD(int aModelWidth, int aModelHeight, float aBoundaryGain, const int aBufferSize, property_type_ aPropagationFactor, property_type_ aDampingCoefficient, unsigned int listenerPosition[2], unsigned int excitationPosition[2], unsigned int workGroupDimensions[2], const char* aKernelSource, bool aIsDebug, bool aIsBenchmark) :
+	OpenCL_FDTD(int aModelWidth, int aModelHeight, float aBoundaryGain, const int aBufferSize, property_type_ aPropagationFactor, property_type_ aDampingCoefficient, unsigned int listenerPosition[2], unsigned int excitationPosition[2], unsigned int workGroupDimensions[2], const char* aKernelSource, bool aIsDebug, bool aIsBenchmark, bool aIsOptimized) :
 		modelWidth_(aModelWidth),
 		modelHeight_(aModelHeight),
 		gridElements_(modelWidth_*modelHeight_),
@@ -120,7 +123,8 @@ public:
 		path_(aKernelSource),
 		isDebug_(aIsDebug),
 		isBenchmark_(aIsBenchmark),
-		bufferRotationIndex_(0)
+		bufferRotationIndex_(0),
+		isOptimized(aIsOptimized)
 	{
 		listenerPosition_[0] = listenerPosition[0];
 		listenerPosition_[1] = listenerPosition[1];
@@ -132,9 +136,12 @@ public:
 		localWorkSpaceY_ = workGroupDimensions[1];
 		kernelComputeElapsedTime_ = 0;
 		kernelOverheadStartTime_ = 0;
-		init();
+		if (isOptimized)
+			initOptimized();
+		else
+			initStandard();
 	}
-	OpenCL_FDTD(OpenCL_FDTD_Arguments args) :
+	OpenCL_FDTD(OpenCL_FDTD_Arguments args, bool aIsOptimized) :
 		modelWidth_(args.modelWidth),
 		modelHeight_(args.modelHeight),
 		gridElements_(modelWidth_*modelHeight_),
@@ -147,7 +154,8 @@ public:
 		path_(args.kernelSource),
 		isDebug_(args.isDebug),
 		isBenchmark_(args.isBenchmark),
-		bufferRotationIndex_(0)
+		bufferRotationIndex_(0),
+		isOptimized(aIsOptimized)
 	{
 		listenerPosition_[0] = args.listenerPosition[0];
 		listenerPosition_[1] = args.listenerPosition[1];
@@ -166,7 +174,10 @@ public:
 		if (isDebug_)
 			printAvailableDevices();
 
-		init();
+		if (isOptimized)
+			initOptimized();
+		else
+			initStandard();
 	}
 	~OpenCL_FDTD()
 	{
@@ -174,7 +185,95 @@ public:
 		//Cleanup - Typically do this in reverse of creation//
 		//////////////////////////////////////////////////////
 	}
-	void init()
+	void initStandard()
+	{
+		int errorStatus = 0;
+
+		///////////////////////////////////////////////
+		//This code executes on the host device - CPU//
+		///////////////////////////////////////////////
+
+		//Initalise grid with boundaries//
+		model_.setListenerPosition(listenerPosition_[0], listenerPosition_[1]);
+		model_.setExcitationPosition(excitationPosition_[0], excitationPosition_[1]);
+
+		/////////////////////////////////////
+		//Step 1: Set up OpenCL environment//
+		/////////////////////////////////////
+
+		//Discover platforms//
+		std::vector <cl::Platform> platforms;
+		cl::Platform::get(&platforms);
+
+		//Create contex properties for first platform//
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[1])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+
+		//Create context context using platform for GPU device//
+		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);
+
+		//Get device list from context//
+		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
+
+		//Create command queue for first device - Profiling enabled//
+		commandQueue_ = cl::CommandQueue(context_, devices[0], CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
+		if (errorStatus)
+			std::cout << "ERROR creating command queue for device. Status code: " << errorStatus << std::endl;
+
+		////////////////////////////////////////////////////////////////
+		//Step 2: Create and populate memory data structures - Buffers//
+		////////////////////////////////////////////////////////////////
+
+		//Create input and output buffer for grid points//
+		nMinusOnePressureBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, gridByteSize_);
+		nPressureBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, gridByteSize_);
+		nPlusOnePressureBuffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, gridByteSize_);
+		boundaryGridBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, gridByteSize_);
+		outputBuffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, output_.bufferSize_);
+		excitationBuffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, excitation_.bufferSize_);
+
+		//Copy data to newly created device's memory//
+		commandQueue_.enqueueWriteBuffer(nMinusOnePressureBuffer_, CL_TRUE, 0, gridByteSize_, model_.getNMinusOneGridBuffer());
+		commandQueue_.enqueueWriteBuffer(nPressureBuffer_, CL_TRUE, 0, gridByteSize_, model_.getNGridBuffer());
+		commandQueue_.enqueueWriteBuffer(nPlusOnePressureBuffer_, CL_TRUE, 0, gridByteSize_, model_.getNPlusOneGridBuffer());
+		commandQueue_.enqueueWriteBuffer(boundaryGridBuffer_, CL_TRUE, 0, gridByteSize_, model_.getBoundaryGridBuffer());
+
+		//////////////////////////////////
+		//Step 3: Compile Kernel program//
+		//////////////////////////////////
+
+		//Read in program source - I'm going to go for reading from compiled object instead//
+		std::ifstream sourceFileName(path_.c_str());
+		std::string sourceFile(std::istreambuf_iterator<char>(sourceFileName), (std::istreambuf_iterator<char>()));
+
+		//Create program source object from std::string source code//
+		std::vector<std::string> programSources;
+		programSources.push_back(sourceFile);
+		cl::Program::Sources ftdtSource(programSources);	//Apparently this takes a vector of strings as the program source.
+
+		//Create program from source code//
+		cl::Program ftdtProgram(context_, ftdtSource, &errorStatus);
+		if (errorStatus)
+			std::cout << "ERROR creating program from source. Status code: " << errorStatus << std::endl;
+
+		//Build program//
+		ftdtProgram.build();
+
+		//Create kernel program on device//
+		ftdtKernel_ = cl::Kernel(ftdtProgram, "ftdtCompute", &errorStatus);
+		if (errorStatus)
+			std::cout << "ERROR creating kernel. Status code: " << errorStatus << std::endl;
+
+		//Set static kernel arguments//
+		ftdtKernel_.setArg(0, sizeof(cl_mem), &nMinusOnePressureBuffer_);
+		ftdtKernel_.setArg(1, sizeof(cl_mem), &nPressureBuffer_);
+		ftdtKernel_.setArg(2, sizeof(cl_mem), &nPlusOnePressureBuffer_);
+		ftdtKernel_.setArg(3, sizeof(cl_mem), &boundaryGridBuffer_);
+		ftdtKernel_.setArg(5, sizeof(cl_mem), &outputBuffer_);
+
+		//unsigned int localWorkspaceSize = localWorkSpaceX_ * localWorkSpaceY_ * sizeof(float);
+		//ftdtKernel_.setArg(12, localWorkspaceSize, NULL);	//To allocate local memory dynamically, must be given a size here.
+	}
+	void initOptimized()
 	{
 		int errorStatus = 0;
 
@@ -261,6 +360,9 @@ public:
 
 		//unsigned int localWorkspaceSize = localWorkSpaceX_ * localWorkSpaceY_ * sizeof(float);
 		//ftdtKernel_.setArg(12, localWorkspaceSize, NULL);	//To allocate local memory dynamically, must be given a size here.
+
+		mapMemoryOne = commandQueue_.enqueueMapBuffer(excitationBuffer_, TRUE, CL_MAP_WRITE, 0, excitation_.bufferSize_, NULL, NULL);
+		mapMemoryTwo = commandQueue_.enqueueMapBuffer(outputBuffer_, TRUE, CL_MAP_WRITE, 0, excitation_.bufferSize_, NULL, NULL);
 	}
 	float step()
 	{
@@ -280,43 +382,80 @@ public:
 
 		return 0.0;
 	}
+	void* mapMemoryOne;
+	void* mapMemoryTwo;
 	bool compute(unsigned long frames, float* inbuf, float* outbuf)
 	{
-		//Set dynamic kernel arguments//
-		int listenerPositionArg = model_.getListenerPosition();
-		int excitationPositionArg = model_.getExcitationPosition();
-		updateDynamicVariables(propagationFactor_, dampingCoefficient_, listenerPositionArg, excitationPositionArg);
-
-		//Load excitation samples into GPU//
-
-		//commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
-		auto mapMemoryOne = commandQueue_.enqueueMapBuffer(excitationBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
-		memcpy(mapMemoryOne, inbuf, excitation_.bufferSize_);
-		commandQueue_.enqueueUnmapMemObject(excitationBuffer_, mapMemoryOne, NULL, NULL);
-
-		ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
-
-		//Calculate buffer size of synthesizer output samples//
-		for (unsigned int i = 0; i != frames; ++i)
+		if (isOptimized)
 		{
-			//Increments kernel indices//
-			ftdtKernel_.setArg(4, sizeof(int), &output_.bufferIndex_);
-			ftdtKernel_.setArg(11, sizeof(int), &bufferRotationIndex_);
+			//Set dynamic kernel arguments//
+			int listenerPositionArg = model_.getListenerPosition();
+			int excitationPositionArg = model_.getExcitationPosition();
+			updateDynamicVariables(propagationFactor_, dampingCoefficient_, listenerPositionArg, excitationPositionArg);
 
-			step();
+			//Load excitation samples into GPU//
+
+			//commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
+			//mapMemoryOne = commandQueue_.enqueueMapBuffer(excitationBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
+			memcpy(mapMemoryOne, inbuf, excitation_.bufferSize_);
+			//commandQueue_.enqueueUnmapMemObject(excitationBuffer_, mapMemoryOne, NULL, NULL);
+
+			ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
+
+			//Calculate buffer size of synthesizer output samples//
+			for (unsigned int i = 0; i != frames; ++i)
+			{
+				//Increments kernel indices//
+				ftdtKernel_.setArg(4, sizeof(int), &output_.bufferIndex_);
+				ftdtKernel_.setArg(11, sizeof(int), &bufferRotationIndex_);
+
+				step();
+			}
+
+			output_.resetIndex();
+			excitation_.resetIndex();
+
+			//commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
+			//mapMemoryTwo = commandQueue_.enqueueMapBuffer(outputBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
+			memcpy(output_.buffer_, mapMemoryTwo, output_.bufferSize_);
+			//commandQueue_.enqueueUnmapMemObject(outputBuffer_, mapMemoryTwo, NULL, NULL);
+			for (int k = 0; k != frames; ++k)
+				outbuf[k] = output_[k];
+
+			return true;
 		}
+		else
+		{
+			//Set dynamic kernel arguments//
+			int listenerPositionArg = model_.getListenerPosition();
+			int excitationPositionArg = model_.getExcitationPosition();
+			updateDynamicVariables(propagationFactor_, dampingCoefficient_, listenerPositionArg, excitationPositionArg);
 
-		output_.resetIndex();
-		excitation_.resetIndex();
+			//Load excitation samples into GPU//
+			commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
 
-		//commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
-		auto mapMemoryTwo = commandQueue_.enqueueMapBuffer(outputBuffer_, TRUE, NULL, 0, excitation_.bufferSize_, NULL, NULL);
-		memcpy(output_.buffer_, mapMemoryTwo, output_.bufferSize_);
-		commandQueue_.enqueueUnmapMemObject(outputBuffer_, mapMemoryTwo, NULL, NULL);
-		for (int k = 0; k != frames; ++k)
-			outbuf[k] = output_[k];
+			ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
 
-		return true;
+			//Calculate buffer size of synthesizer output samples//
+			for (unsigned int i = 0; i != frames; ++i)
+			{
+				//Increments kernel indices//
+				ftdtKernel_.setArg(4, sizeof(int), &output_.bufferIndex_);
+				ftdtKernel_.setArg(11, sizeof(int), &bufferRotationIndex_);
+
+				step();
+			}
+
+			output_.resetIndex();
+			excitation_.resetIndex();
+
+			commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
+			for (int k = 0; k != frames; ++k)
+				outbuf[k] = output_[k];
+
+			return true;
+		}
+		return false;
 	}
 	void updateDynamicVariables(property_type_ aPropagationFactor, property_type_ aDampingFactor, unsigned int aListenerPosition, unsigned int aExcitationPosition)
 	{
@@ -389,7 +528,7 @@ public:
 				if (strstr(platform.getInfo<CL_PLATFORM_NAME>().c_str(), "AMD"))
 				{
 					std::cout << "\tAMD Specific:" << std::endl;
-					std::cout << "\t\tAMD Wavefront size: " << device.getInfo<CL_DEVICE_WAVEFRONT_WIDTH_AMD>() << std::endl;
+					//std::cout << "\t\tAMD Wavefront size: " << device.getInfo<CL_DEVICE_WAVEFRONT_WIDTH_AMD>() << std::endl;
 				}
 			}
 			std::cout << std::endl;

@@ -3,9 +3,9 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-#include "CUDA_Wrapper.hpp"
-#define M_PI           3.14159265358979323846
-#define M_E 2.718281828459
+#include "GPU_Overhead_Benchmarks_CUDA.hpp"
+#define M_PI	3.14159265358979323846
+#define M_E		2.718281828459
 
 __global__ void null_kernel(void) {
 }
@@ -73,21 +73,29 @@ void simple_buffer_synthesis(int* sampleRate, float* frequency, float* outputBuf
 __global__
 void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
 {
-	int blockId = blockIdx.y * gridDim.x + blockIdx.x;
+	//int blockId = blockIdx.y * gridDim.x + blockIdx.x;
+	//
+	////Get index for current and neighbouring nodes//
+	////@ToDo - Need to check this, different indexing to openCL!//
+	//int ixy = blockId * blockDim.x + threadIdx.x;
+	//int ixMy = (blockId - 1) * blockDim.x + threadIdx.x;
+	//int ixPy = (blockId + 1) * blockDim.x + threadIdx.x;
+	//int ixyM = (blockId) * blockDim.x + threadIdx.x - 1;
+	//int ixyP = (blockId)* blockDim.x + threadIdx.x + 1;
 
-	//Get index for current and neighbouring nodes//
-	//@ToDo - Need to check this, different indexing to openCL!//
-	int ixy = blockId * blockDim.x + threadIdx.x;
-	int ixMy = (blockId - 1) * blockDim.x + threadIdx.x;
-	int ixPy = (blockId + 1) * blockDim.x + threadIdx.x;
-	int ixyM = (blockId) * blockDim.x + threadIdx.x - 1;
-	int ixyP = (blockId)* blockDim.x + threadIdx.x + 1;
+	int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+	//int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+	int ixy = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+	int ixMy = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + (threadIdx.x-1);
+	int ixPy = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + (threadIdx.x+1);
+	int ixyM = blockId * (blockDim.x * blockDim.y) + ((threadIdx.y-1) * blockDim.x) + threadIdx.x;
+	int ixyP = blockId * (blockDim.x * blockDim.y) + ((threadIdx.y+1) * blockDim.x) + threadIdx.x;
 
 	//Determine each buffer in relation to time from a rotation index//
 	float* nMOne;
 	float* n;
 	float* nPOne;
-	if (rotationIndex == 0)
+	if (*rotationIndex == 0)
 	{
 		nMOne = gridOne;
 		n = gridTwo;
@@ -152,7 +160,7 @@ void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, 
 	{
 		newPressure += excitation[*samplesIndex];	//Input excitation value into point. Then increment to next excitation in next iteration.
 	}
-
+	
 	nPOne[ixy] = newPressure;
 }
 
@@ -172,13 +180,7 @@ namespace CUDA_Kernels
 
 	void nullKernelExecute()
 	{
-		null_kernel << <1, 1024>> > ();
-	}
-	void copyBufferExecute(size_t aN, float* srcBuffer, float* dstBuffer, float* cudaSrcBuffer, float* cudaDstBuffer)
-	{
-		size_t numBlocks = aN / 1024;
-		dim3 threadsPerBlock(1024);
-		copy_buffer << <numBlocks, threadsPerBlock >> > (cudaSrcBuffer, cudaDstBuffer);
+		null_kernel << <1, 1>> > ();
 	}
 	void singleSampleExecute(float* singleSample)
 	{
@@ -186,36 +188,42 @@ namespace CUDA_Kernels
 		dim3 threadsPerBlock(1);
 		single_sample << <numBlocks, threadsPerBlock >> > (singleSample);
 	}
-	void simpleBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	void copyBufferExecute(dim3 aGlobalSize, dim3 aLocalSize, float* srcBuffer, float* dstBuffer, float* cudaSrcBuffer, float* cudaDstBuffer)
 	{
-		size_t numBlocks = aN / 1024;
-		dim3 threadsPerBlock(1024);
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
+		copy_buffer << <numBlocks, threadsPerBlock >> > (cudaSrcBuffer, cudaDstBuffer);
+	}
+	void simpleBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	{
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		simple_buffer_processing << <numBlocks, threadsPerBlock >> > (cudaInputBuffer, cudaOutputBuffer);
 	}
-	void complexBufferProcessing(size_t aN, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	void complexBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
 	{
-		size_t numBlocks = aN / 1024;
-		dim3 threadsPerBlock(1024);
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		complex_buffer_processing << <numBlocks, threadsPerBlock >> > (inputBuffer, outputBuffer);
 	}
 
-	void simpleBufferSynthesis(size_t aN, int* cudaSampleRate, float* cudaFrequency, float* cudaOutputBuffer)
+	void simpleBufferSynthesis(dim3 aGlobalSize, dim3 aLocalSize, int* cudaSampleRate, float* cudaFrequency, float* cudaOutputBuffer)
 	{
-		size_t numBlocks = aN / 1024;
-		dim3 threadsPerBlock(1024);
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		simple_buffer_synthesis << <numBlocks, threadsPerBlock >> > (cudaSampleRate, cudaFrequency, cudaOutputBuffer);
 	}
-	void complexBufferSynthesis(size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
+	void complexBufferSynthesis(dim3 aGlobalSize, dim3 aLocalSize, size_t aBufferSize, size_t aGridSize, float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
 	{
 		//Grid size is the number of workitems to allocate. So implicit to the kernel//
-		size_t numBlocks = aGridSize / 1024;
-		dim3 threadsPerBlock(1024);
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		complex_buffer_synthesis << <numBlocks, threadsPerBlock >> > (gridOne, gridTwo, gridThree, boundaryGain, samplesIndex, samples, excitation, listenerPosition, excitationPosition, propagationFactor, dampingFactor, rotationIndex);
 	}
-	void interruptedBufferProcessing(size_t aBufferSize, float* sampleBuffer, float* outputBuffer)
+	void interruptedBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* sampleBuffer, float* outputBuffer)
 	{
-		size_t numBlocks = aBufferSize / 1024;
-		dim3 threadsPerBlock(1024);
+		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
+		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		interrupted_buffer_processing << <numBlocks, threadsPerBlock >> > (sampleBuffer, outputBuffer);
 	}
 }
