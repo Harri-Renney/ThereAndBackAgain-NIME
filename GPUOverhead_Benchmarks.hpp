@@ -83,7 +83,7 @@ public:
 
 		//Build the program - Define kernel constants//
 		char options[1024];
-		sprintf(options,
+		snprintf(options, sizeof(options),
 			" -cl-fast-relaxed-math"
 			//" -cl-single-precision-constant"
 			//""
@@ -98,6 +98,119 @@ public:
 		openCL.createKernel("cl_009_complexbufferprocessing");
 		openCL.createKernel("cl_010_simplebuffersynthesis");
 		openCL.createKernel("cl_012_interruptedbufferprocessing");
+	}
+
+	void runGeneralBenchmarks()
+	{
+
+	}
+	void runRealTimeBenchmarks()
+	{
+		cl_unidirectional_baseline();
+		cl_unidirectional_processing();
+		cl_bidirectional_baseline();
+		cl_bidirectional_processing();
+	}
+
+	void cl_nullkernel(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_gputocpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_gputocpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogputocpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogputocpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_cputogpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_devicetransfer_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_devicetransferkernel_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_simplebufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_simplebufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_complexbufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_complexbufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_simplebuffersynthesis_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_simplebuffersynthesis_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_complexbuffersynthesis_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_complexbuffersynthesis_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_interruptedbufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_interruptedbufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_unidirectional_baseline(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_unidirectional_processing(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_bidirectional_baseline(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cl_bidirectional_processing(size_t aN, bool isWarmup)
+	{
+
 	}
 
 	void cl_000_nullKernel(size_t aN, bool isWarmup)
@@ -120,7 +233,7 @@ public:
 		benchmarker_.elapsedTimer("cl_000_nullKernel");
 
 		bool isSuccessful = true;
-		std::cout << "Null kernel successful? " << isSuccessful << std::endl << std::endl;
+		std::cout << "cl_000_nullKernel successful:  " << isSuccessful << std::endl << std::endl;
 	}
 	void cl_001_CPUtoGPU(size_t aN, bool isWarmup)
 	{	
@@ -571,8 +684,8 @@ public:
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			//Calculate simple attenuation on CPU to compare//
-			srcMemoryBuffer[i] = srcMemoryBuffer[i] * 0.5;
-			if (srcMemoryBuffer[i] != dstMemoryBuffer[i])
+			float attenuatedSample = srcMemoryBuffer[i] * 0.5;
+			if (attenuatedSample != dstMemoryBuffer[i])
 			{
 				isSuccessful = false;
 				break;
@@ -645,8 +758,8 @@ public:
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			//Calculate simple attenuation on CPU to compare//
-			srcMemoryBuffer[i] = srcMemoryBuffer[i] * 0.5;
-			if (srcMemoryBuffer[i] != dstMemoryBuffer[i])
+			float attenuatedSample = srcMemoryBuffer[i] * 0.5;
+			if (attenuatedSample != dstMemoryBuffer[i])
 			{
 				isSuccessful = false;
 				break;

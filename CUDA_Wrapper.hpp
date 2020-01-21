@@ -56,6 +56,97 @@ public:
 		for (size_t i = 0; i != 10; ++i)
 			standardBufferlengths[i] = 2^i;
 	}
+
+	void runGeneralBenchmarks()
+	{
+
+	}
+
+	void cuda_nullkernel(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_gputocpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_gputocpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogputocpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogputocpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogpu_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_cputogpu_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_devicetransfer_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_devicetransferkernel_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_simplebufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_simplebufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_complexbufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_complexbufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_simplebuffersynthesis_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_simplebuffersynthesis_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_complexbuffersynthesis_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_complexbuffersynthesis_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_interruptedbufferprocessing_standard(size_t aN, bool isWarmup)
+	{
+
+	}
+	void cuda_interruptedbufferprocessing_mappedmemory(size_t aN, bool isWarmup)
+	{
+
+	}
+
 	void cuda_000_nullkernel(size_t aN, bool isWarmup)
 	{
 		//Execute and average//
