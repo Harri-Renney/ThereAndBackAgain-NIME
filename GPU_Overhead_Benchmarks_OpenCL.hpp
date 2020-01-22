@@ -54,12 +54,10 @@ public:
 	{
 		openCL = OpenCL_Wrapper(aPlatform, aDevice, context_, device_, commandQueue_);
 		bufferSizes[0] = 1;
-		for (size_t i = 1; i != 11; ++i)
+		for (size_t i = 1; i != bufferSizesLength; ++i)
 		{
 			bufferSizes[i] = bufferSizes[i - 1] * 2;
 		}
-		bufferSizes[11] = MEGA_BYTE;
-		bufferSizes[12] = GIGA_BYTE;
 
 		//Build the program - Define kernel constants//
 		char options[1024];
@@ -1263,11 +1261,138 @@ public:
 	}
 	void cl_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepate new file for cl_bidirectional_processing//
+		std::string strBenchmarkFileName = "cl_bidirectional_baseline_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		clBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		cl::Kernel nullKernel;
+		openCL.createKernel(context_, kernelProgram_, nullKernel, "cl_000_nullKernel");
+
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferSize = bufferSizes[i];
+			if (currentBufferSize > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferSize);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferSize];
+			float* outBuf = new float[currentBufferSize];
+			for (size_t i = 0; i != currentBufferSize; ++i)
+				inBuf[i] = i;
+
+			cl::Buffer deviceBufferInput;
+			cl::Buffer deviceBufferOutput;
+			openCL.createBuffer(context_, deviceBufferInput, CL_MEM_READ_WRITE, bufferSize_);
+			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_WRITE, bufferSize_);
+
+			float* soundBuffer = new float[currentBufferSize > aFrameRate ? currentBufferSize : aFrameRate * 2];
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				clBenchmarker_.startTimer(strBenchmarkName);
+				openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+				clBenchmarker_.pauseTimer(strBenchmarkName);
+
+				//Log audio for inspection if necessary//
+				for (int j = 0; j != currentBufferSize; ++j)
+					soundBuffer[numSamplesComputed + j] = outBuf[j];
+
+				numSamplesComputed += currentBufferSize;
+			}
+			clBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			//Save audio to file for inspection//
+			outputAudioFile("cl_bidirectional_baseline.wav", soundBuffer, aFrameRate);
+			std::cout << "cl_bidirectional_baseline successful: Inspect audio log \"cl_bidirectional_baseline.wav\"" << std::endl << std::endl;
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
+		}
 	}
 	void cl_bidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepate new file for cl_bidirectional_processing//
+		std::string strBenchmarkFileName = "cl_bidirectional_processing_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		clBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferSize = bufferSizes[i];
+			if (currentBufferSize > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferSize);
+			strBenchmarkName.append(strBufferSize);
+
+			OpenCL_FDTD_Arguments args;
+			args.isDebug = false;
+			args.isBenchmark = false;
+			args.modelWidth = 64;
+			args.modelHeight = 64;
+			args.propagationFactor = 0.06;
+			args.dampingCoefficient = 0.0005;
+			args.boundaryGain = 0.5;
+			args.listenerPosition[0] = 8;
+			args.listenerPosition[1] = 8;
+			args.excitationPosition[0] = 32;
+			args.excitationPosition[1] = 32;
+			args.workGroupDimensions[0] = 16;
+			args.workGroupDimensions[1] = 16;
+			args.bufferSize = currentBufferSize;
+			args.kernelSource = "resources/kernels/fdtdGlobal.cl";
+			OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferSize];
+			float* outBuf = new float[currentBufferSize];
+			for (size_t i = 0; i != currentBufferSize; ++i)
+				inBuf[i] = 0.5;
+
+			float* soundBuffer = new float[currentBufferSize > aFrameRate ? currentBufferSize : aFrameRate*2];
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				clBenchmarker_.startTimer(strBenchmarkName);
+				fdtdSynth.fillBuffer(currentBufferSize, inBuf, outBuf);
+				clBenchmarker_.pauseTimer(strBenchmarkName);
+
+				//Log audio for inspection if necessary//
+				for (int j = 0; j != currentBufferSize; ++j)
+					soundBuffer[numSamplesComputed + j] = outBuf[j];
+
+				numSamplesComputed += currentBufferSize;
+			}
+			clBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			//Save audio to file for inspection//
+			outputAudioFile("cl_bidirectional_processing.wav", soundBuffer, aFrameRate);
+			std::cout << "cl_bidirectional_processing successful: Inspect audio log \"cl_bidirectional_processing.wav\"" << std::endl << std::endl;
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
+		}
 	}
 
 	
