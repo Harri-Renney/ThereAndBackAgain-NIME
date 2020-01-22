@@ -188,19 +188,19 @@ namespace CUDA_Kernels
 		dim3 threadsPerBlock(1);
 		single_sample << <numBlocks, threadsPerBlock >> > (singleSample);
 	}
-	void copyBufferExecute(dim3 aGlobalSize, dim3 aLocalSize, float* srcBuffer, float* dstBuffer, float* cudaSrcBuffer, float* cudaDstBuffer)
+	void copyBufferExecute(dim3 aGlobalSize, dim3 aLocalSize, float* cudaSrcBuffer, float* cudaDstBuffer)
 	{
 		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
 		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		copy_buffer << <numBlocks, threadsPerBlock >> > (cudaSrcBuffer, cudaDstBuffer);
 	}
-	void simpleBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	void simpleBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* cudaInputBuffer, float* cudaOutputBuffer)
 	{
 		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
 		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);
 		simple_buffer_processing << <numBlocks, threadsPerBlock >> > (cudaInputBuffer, cudaOutputBuffer);
 	}
-	void complexBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* inputBuffer, float* outputBuffer, float* cudaInputBuffer, float* cudaOutputBuffer)
+	void complexBufferProcessing(dim3 aGlobalSize, dim3 aLocalSize, float* cudaInputBuffer, float* cudaOutputBuffer)
 	{
 		dim3 numBlocks(aGlobalSize.x / aLocalSize.x, aGlobalSize.x / aLocalSize.y);
 		dim3 threadsPerBlock(aLocalSize.x, aLocalSize.y);

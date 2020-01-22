@@ -46,13 +46,6 @@ private:
 	cl::CommandQueue commandQueue_;
 	cl::Program kernelProgram_;
 	cl::Event kernelBenchmark_;
-	static const size_t bufferSizesLength = 13;
-	uint64_t bufferSizes[bufferSizesLength];
-
-	typedef float datatype;
-	uint32_t sampleRate_ = 44100;
-	uint64_t bufferSize_ = 1024;
-	uint64_t bufferLength_ = bufferSize_ / sizeof(datatype);
 public:
 	static const uint32_t GIGA_BYTE = 1024 * 1024 * 1024;
 	static const uint32_t MEGA_BYTE = 1024 * 1024;
@@ -410,6 +403,7 @@ public:
 		if (isWarmup)
 		{
 			openCL.writeBuffer(commandQueue_, deviceBuffer, bufferSize_, hostBuffer);
+			openCL.waitCommandQueue(commandQueue_);
 			openCL.readBuffer(commandQueue_, deviceBuffer, bufferSize_, checkBuffer);
 			openCL.waitCommandQueue(commandQueue_);
 		}
