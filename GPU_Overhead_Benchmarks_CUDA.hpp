@@ -45,7 +45,7 @@ private:
 	static const uint32_t MEGA_BYTE = 1024 * 1024;
 	static const uint32_t KILO_BYTE = 1024;
 
-	static const size_t bufferSizesLength = 13;
+	static const size_t bufferSizesLength = 30;
 	uint64_t bufferSizes[bufferSizesLength];
 
 	typedef float datatype;
@@ -70,18 +70,16 @@ public:
 
 	void runGeneralBenchmarks(uint64_t aNumRepetitions)
 	{
-		for (uint32_t i = 0; i != bufferSizesLength; ++i)
+		for (uint32_t i = 0; i != 20; ++i)
 		{
 			uint64_t currentBufferSize = bufferSizes[i];
-			std::string benchmarkFileName = "cl_";
+			std::string benchmarkFileName = "cuda_";
 			std::string strBufferSize = std::to_string(currentBufferSize);
 			benchmarkFileName.append("buffersize");
 			benchmarkFileName.append(strBufferSize);
 			benchmarkFileName.append(".csv");
 			cudaBenchmarker_ = Benchmarker(benchmarkFileName, { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 			setBufferLength(currentBufferSize);
-			if (i > 9)
-				setBufferSize(currentBufferSize);
 
 			//Run tests with setup//
 			cuda_nullkernel(aNumRepetitions, true);
@@ -207,24 +205,19 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostUnifiedBuffer;
-		float* deviceBuffer;
 		cudaMallocManaged(&hostUnifiedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
-
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostUnifiedBuffer[i] = 42.0;
 
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_cputogpu_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(deviceBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostUnifiedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_cputogpu_mappedmemory");
-			cudaMemcpy(deviceBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostUnifiedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_cputogpu_mappedmemory");
 		}
@@ -232,7 +225,7 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+		cudaMemcpy(checkBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -244,7 +237,6 @@ public:
 		std::cout << "cuda_cputogpu_mappedmemory successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostUnifiedBuffer);
 
 		delete(checkBuffer);
@@ -259,24 +251,19 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostPinnedBuffer;
-		float* deviceBuffer;
 		cudaMallocHost(&hostPinnedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
-
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostPinnedBuffer[i] = 42.0;
 
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_cputogpu_pinned" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(deviceBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostPinnedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_cputogpu_pinned");
-			cudaMemcpy(deviceBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostPinnedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_cputogpu_pinned");
 		}
@@ -284,7 +271,7 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+		cudaMemcpy(checkBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -296,7 +283,6 @@ public:
 		std::cout << "cuda_cputogpu_pinned successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostPinnedBuffer);
 
 		delete(checkBuffer);
@@ -360,27 +346,22 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostUnifiedBuffer;
-		float* deviceBuffer;
 		cudaMallocManaged(&hostUnifiedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
 
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostUnifiedBuffer[i] = 42.0;
-
-		cudaMemcpy(deviceBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+		cudaMemcpy(hostUnifiedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 		cudaDeviceSynchronize();
 
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_gputocpu_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(hostUnifiedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_gputocpu_mappedmemory");
-			cudaMemcpy(hostUnifiedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_gputocpu_mappedmemory");
 		}
@@ -388,7 +369,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -400,7 +380,6 @@ public:
 		std::cout << "cuda_gputocpu_mappedmemory successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostUnifiedBuffer);
 
 		delete(checkBuffer);
@@ -415,27 +394,22 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostPinnedBuffer;
-		float* deviceBuffer;
 		cudaMallocHost(&hostPinnedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
 
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostPinnedBuffer[i] = 42.0;
-
-		cudaMemcpy(deviceBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+		cudaMemcpy(hostPinnedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 		cudaDeviceSynchronize();
 
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_gputocpu_pinned" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(hostPinnedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_gputocpu_pinned");
-			cudaMemcpy(hostPinnedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_gputocpu_pinned");
 		}
@@ -443,7 +417,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -455,7 +428,6 @@ public:
 		std::cout << "cuda_gputocpu_pinned successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostPinnedBuffer);
 
 		delete(checkBuffer);
@@ -520,28 +492,22 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostUnifiedBuffer;
-		float* deviceBuffer;
 		cudaMallocManaged(&hostUnifiedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
-
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostUnifiedBuffer[i] = 42.0;
-
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_cputogputocpu_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(deviceBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostUnifiedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
-			cudaMemcpy(hostUnifiedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_cputogputocpu_mappedmemory");
-			cudaMemcpy(deviceBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostUnifiedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
-			cudaMemcpy(hostUnifiedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostUnifiedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_cputogputocpu_mappedmemory");
 		}
@@ -549,7 +515,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -561,7 +526,6 @@ public:
 		std::cout << "cuda_cputogputocpu_mappedmemory successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostUnifiedBuffer);
 
 		delete(checkBuffer);
@@ -576,28 +540,23 @@ public:
 			hostBuffer[i] = 42.0;
 
 		float* hostPinnedBuffer;
-		float* deviceBuffer;
 		cudaMallocHost(&hostPinnedBuffer, bufferSize_);
-		cudaMalloc(&deviceBuffer, bufferSize_);
-
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostPinnedBuffer[i] = 42.0;
 
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_cputogputocpu_pinnedmemory" << std::endl;
 		if (isWarmup)
 		{
-			cudaMemcpy(deviceBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostPinnedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
-			cudaMemcpy(hostPinnedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToDevice);
+			cudaMemcpy(checkBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_cputogputocpu_pinnedmemory");
-			cudaMemcpy(deviceBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaMemcpy(hostPinnedBuffer, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
-			cudaMemcpy(hostPinnedBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToDevice);
+			cudaMemcpy(checkBuffer, hostPinnedBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_cputogputocpu_pinnedmemory");
 		}
@@ -605,7 +564,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBuffer, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -617,7 +575,6 @@ public:
 		std::cout << "cuda_cputogputocpu_pinnedmemory successful: " << isSuccessful << std::endl << std::endl;
 
 		//Cleanup//
-		cudaFree(deviceBuffer);
 		cudaFree(hostPinnedBuffer);
 
 		delete(checkBuffer);
@@ -975,7 +932,8 @@ public:
 		bool isSuccessful = true;
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			float attenuatedSample = hostBuffer[i] * 0.5;
+			if (attenuatedSample != checkBuffer[i])
 			{
 				isSuccessful = false;
 				break;
@@ -1031,7 +989,8 @@ public:
 		bool isSuccessful = true;
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			float attenuatedSample = hostBuffer[i] * 0.5;
+			if (attenuatedSample != checkBuffer[i])
 			{
 				isSuccessful = false;
 				break;
@@ -1091,7 +1050,8 @@ public:
 		cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			float attenuatedSample = hostBuffer[i] * 0.5;
+			if (attenuatedSample != checkBuffer[i])
 			{
 				isSuccessful = false;
 				break;
@@ -1151,7 +1111,13 @@ public:
 		cudaMemcpy(checkBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			//Calculate triangular smoothing on CPU to compare//
+			float smoothedSample = hostBuffer[i];
+			if (i > 2 & i < bufferLength_ - 2)
+			{
+				smoothedSample = ((hostBuffer[i - 2] + 2.0 * hostBuffer[i - 1] + 3.0 * hostBuffer[i] + 2.0 * hostBuffer[i + 1] + hostBuffer[i + 2]) / 9.0);
+			}
+			if (checkBuffer[i] != smoothedSample)
 			{
 				isSuccessful = false;
 				break;
@@ -1210,7 +1176,13 @@ public:
 		bool isSuccessful = true;
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			//Calculate triangular smoothing on CPU to compare//
+			float smoothedSample = hostBuffer[i];
+			if (i > 2 & i < bufferLength_ - 2)
+			{
+				smoothedSample = ((hostBuffer[i - 2] + 2.0 * hostBuffer[i - 1] + 3.0 * hostBuffer[i] + 2.0 * hostBuffer[i + 1] + hostBuffer[i + 2]) / 9.0);
+			}
+			if (checkBuffer[i] != smoothedSample)
 			{
 				isSuccessful = false;
 				break;
@@ -1269,7 +1241,13 @@ public:
 		bool isSuccessful = true;
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
-			if (checkBuffer[i] != hostBuffer[i])
+			//Calculate triangular smoothing on CPU to compare//
+			float smoothedSample = hostBuffer[i];
+			if (i > 2 & i < bufferLength_ - 2)
+			{
+				smoothedSample = ((hostBuffer[i - 2] + 2.0 * hostBuffer[i - 1] + 3.0 * hostBuffer[i] + 2.0 * hostBuffer[i + 1] + hostBuffer[i + 2]) / 9.0);
+			}
+			if (checkBuffer[i] != smoothedSample)
 			{
 				isSuccessful = false;
 				break;

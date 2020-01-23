@@ -77,7 +77,7 @@ public:
 
 	void runGeneralBenchmarks(uint64_t aNumRepetitions) override
 	{
-		for (uint32_t i = 0; i != bufferSizesLength; ++i)
+		for (uint32_t i = 0; i != 20; ++i)
 		{
 			uint64_t currentBufferSize = bufferSizes[i];
 			std::string benchmarkFileName = "cl_";
@@ -87,8 +87,6 @@ public:
 			benchmarkFileName.append(".csv");
 			clBenchmarker_ = Benchmarker(benchmarkFileName, { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 			setBufferLength(currentBufferSize);
-			if (i > 9)
-				setBufferSize(currentBufferSize);
 
 			//Run tests with setup//
 			cl_nullkernel(aNumRepetitions, true);
@@ -1153,7 +1151,7 @@ public:
 		args.workGroupDimensions[1] = 16;
 		args.bufferSize = bufferLength_;
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);
+		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);	//@ToDo - Need to have selected device control!
 
 		//Execute and average//
 		std::cout << "Executing test: cl_complexbuffersynthesis_standard" << std::endl;
@@ -1214,7 +1212,7 @@ public:
 		args.workGroupDimensions[1] = 16;
 		args.bufferSize = bufferLength_;
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, true);
+		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, true);	//@ToDo - Need to have selected device control!
 
 		//Execute and average//
 		std::cout << "Executing test: cl_complexbuffersynthesis_mappedmemory" << std::endl;
@@ -1253,11 +1251,124 @@ public:
 
 	void cl_unidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepate new file for cl_bidirectional_processing//
+		std::string strBenchmarkFileName = "cl_unidirectional_baseline_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		clBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		cl::Kernel nullKernel;
+		openCL.createKernel(context_, kernelProgram_, nullKernel, "cl_000_nullKernel");
+
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferLength);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
+				inBuf[i] = i;
+
+			cl::Buffer deviceBufferOutput;
+			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_WRITE, bufferSize_);
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				clBenchmarker_.startTimer(strBenchmarkName);
+				openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+				clBenchmarker_.pauseTimer(strBenchmarkName);
+
+				numSamplesComputed += currentBufferLength;
+			}
+			clBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
+		}
 	}
 	void cl_unidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepate new file for cl_bidirectional_processing//
+		std::string strBenchmarkFileName = "cl_unidirectional_processing_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		clBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferLength);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
+				inBuf[i] = i;
+
+			const int sampleRate = 44100;
+			const float frequency = 1400.0;
+			cl::Buffer deviceBufferOutput;
+			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_WRITE, bufferSize_);
+
+			cl::Kernel simpleBufferSynthesisKernel;
+			openCL.createKernel(context_, kernelProgram_, simpleBufferSynthesisKernel, "cl_010_simplebuffersynthesis");
+			openCL.setKernelArgument(simpleBufferSynthesisKernel, (void*)&sampleRate, 0, sizeof(int));
+			openCL.setKernelArgument(simpleBufferSynthesisKernel, (void*)&frequency, 1, sizeof(float));
+			openCL.setKernelArgument(simpleBufferSynthesisKernel, deviceBufferOutput, 2, sizeof(cl_mem));
+
+			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate * 2];
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				clBenchmarker_.startTimer(strBenchmarkName);
+				openCL.enqueueKernel(commandQueue_, simpleBufferSynthesisKernel, globalWorkspace_, localWorkspace_);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+				clBenchmarker_.pauseTimer(strBenchmarkName);
+
+				//Log audio for inspection if necessary//
+				for (int j = 0; j != currentBufferSize; ++j)
+					soundBuffer[numSamplesComputed + j] = outBuf[j];
+
+				numSamplesComputed += currentBufferLength;
+			}
+			clBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			//Save audio to file for inspection//
+			outputAudioFile("cl_unidirectional_processing.wav", soundBuffer, aFrameRate);
+			std::cout << "cl_unidirectional_processing successful: Inspect audio log \"cl_unidirectional_processing.wav\"" << std::endl << std::endl;
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
+		}
 	}
 	void cl_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
@@ -1274,49 +1385,57 @@ public:
 		uint64_t numSamplesComputed = 0;
 		for (size_t i = 0; i != bufferSizesLength; ++i)
 		{
-			uint64_t currentBufferSize = bufferSizes[i];
-			if (currentBufferSize > aFrameRate)
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
 				break;
 
 			std::string strBenchmarkName = "";
-			std::string strBufferSize = std::to_string(currentBufferSize);
+			std::string strBufferSize = std::to_string(currentBufferLength);
 			strBenchmarkName.append(strBufferSize);
 
 			uint64_t numSamplesComputed = 0;
-			float* inBuf = new float[currentBufferSize];
-			float* outBuf = new float[currentBufferSize];
-			for (size_t i = 0; i != currentBufferSize; ++i)
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
 				inBuf[i] = i;
 
 			cl::Buffer deviceBufferInput;
 			cl::Buffer deviceBufferOutput;
-			openCL.createBuffer(context_, deviceBufferInput, CL_MEM_READ_WRITE, bufferSize_);
-			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_WRITE, bufferSize_);
+			openCL.createBuffer(context_, deviceBufferInput, CL_MEM_WRITE_ONLY, bufferSize_);
+			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_ONLY, bufferSize_);
 
-			float* soundBuffer = new float[currentBufferSize > aFrameRate ? currentBufferSize : aFrameRate * 2];
+			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate * 2];
 
+			/*clBenchmarker_.startTimer(strBenchmarkName);
+			openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+			openCL.waitCommandQueue(commandQueue_);
+			clBenchmarker_.pauseTimer(strBenchmarkName);*/
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
-				openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
-				openCL.waitCommandQueue(commandQueue_);
-				openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
-				openCL.waitCommandQueue(commandQueue_);
-				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
-				openCL.waitCommandQueue(commandQueue_);
+				commandQueue_.enqueueWriteBuffer(deviceBufferInput, CL_TRUE, 0, currentBufferSize, inBuf);
+				commandQueue_.finish();
+				commandQueue_.enqueueNDRangeKernel(nullKernel, cl::NullRange/*globaloffset*/, 1, 1, NULL, NULL);
+				commandQueue_.finish();
+				commandQueue_.enqueueReadBuffer(deviceBufferInput, CL_TRUE, 0, currentBufferSize, inBuf);
+				commandQueue_.finish();
+				//openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
+				//openCL.waitCommandQueue(commandQueue_);
+				//openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+				//openCL.waitCommandQueue(commandQueue_);
+				//openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				//openCL.waitCommandQueue(commandQueue_);
 				clBenchmarker_.pauseTimer(strBenchmarkName);
 
-				//Log audio for inspection if necessary//
-				for (int j = 0; j != currentBufferSize; ++j)
-					soundBuffer[numSamplesComputed + j] = outBuf[j];
-
-				numSamplesComputed += currentBufferSize;
+				numSamplesComputed += currentBufferLength;
 			}
 			clBenchmarker_.elapsedTimer(strBenchmarkName);
-
-			//Save audio to file for inspection//
-			outputAudioFile("cl_bidirectional_baseline.wav", soundBuffer, aFrameRate);
-			std::cout << "cl_bidirectional_baseline successful: Inspect audio log \"cl_bidirectional_baseline.wav\"" << std::endl << std::endl;
 
 			numSamplesComputed = 0;
 
@@ -1336,12 +1455,14 @@ public:
 		uint64_t numSamplesComputed = 0;
 		for (size_t i = 0; i != bufferSizesLength; ++i)
 		{
-			uint64_t currentBufferSize = bufferSizes[i];
-			if (currentBufferSize > aFrameRate)
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
 				break;
 
 			std::string strBenchmarkName = "";
-			std::string strBufferSize = std::to_string(currentBufferSize);
+			std::string strBufferSize = std::to_string(currentBufferLength);
 			strBenchmarkName.append(strBufferSize);
 
 			OpenCL_FDTD_Arguments args;
@@ -1358,29 +1479,29 @@ public:
 			args.excitationPosition[1] = 32;
 			args.workGroupDimensions[0] = 16;
 			args.workGroupDimensions[1] = 16;
-			args.bufferSize = currentBufferSize;
+			args.bufferSize = currentBufferLength;
 			args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-			OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);
+			OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);	//@ToDo - Need to have selected device control!
 
 			uint64_t numSamplesComputed = 0;
-			float* inBuf = new float[currentBufferSize];
-			float* outBuf = new float[currentBufferSize];
-			for (size_t i = 0; i != currentBufferSize; ++i)
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
 				inBuf[i] = 0.5;
 
-			float* soundBuffer = new float[currentBufferSize > aFrameRate ? currentBufferSize : aFrameRate*2];
+			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate*2];
 
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
-				fdtdSynth.fillBuffer(currentBufferSize, inBuf, outBuf);
+				fdtdSynth.fillBuffer(currentBufferLength, inBuf, outBuf);
 				clBenchmarker_.pauseTimer(strBenchmarkName);
 
 				//Log audio for inspection if necessary//
-				for (int j = 0; j != currentBufferSize; ++j)
+				for (int j = 0; j != currentBufferLength; ++j)
 					soundBuffer[numSamplesComputed + j] = outBuf[j];
 
-				numSamplesComputed += currentBufferSize;
+				numSamplesComputed += currentBufferLength;
 			}
 			clBenchmarker_.elapsedTimer(strBenchmarkName);
 

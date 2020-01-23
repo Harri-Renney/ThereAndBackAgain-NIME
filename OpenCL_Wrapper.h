@@ -104,11 +104,11 @@ public:
 	// . //
 	void setKernelArgument(cl::Kernel& aKernel, cl::Buffer& aBuffer, int aIndex, int aSize)
 	{
-		aKernel.setArg(aIndex, aSize, &aBuffer);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
+		aKernel.setArg(aIndex, aSize, &aBuffer);
 	}
 	void setKernelArgument(cl::Kernel& aKernel, void* aValue, int aIndex, int aSize)
 	{
-		aKernel.setArg(aIndex, aSize, aValue);	//@ToDo - Check this works, and not meant to be using kernels_.find(...)
+		aKernel.setArg(aIndex, aSize, aValue);
 	}
 
 	void enqueueKernel(cl::CommandQueue& aCommandQueue, cl::Kernel& aKernel, cl::NDRange aGlobalSize, cl::NDRange aLocalSize)

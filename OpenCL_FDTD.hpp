@@ -206,7 +206,7 @@ public:
 		cl::Platform::get(&platforms);
 
 		//Create contex properties for first platform//
-		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[1])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
 
 		//Create context context using platform for GPU device//
 		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);
@@ -272,6 +272,8 @@ public:
 
 		//unsigned int localWorkspaceSize = localWorkSpaceX_ * localWorkSpaceY_ * sizeof(float);
 		//ftdtKernel_.setArg(12, localWorkspaceSize, NULL);	//To allocate local memory dynamically, must be given a size here.
+
+		std::cout << "\t\tDevice Name: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
 	}
 	void initOptimized()
 	{
@@ -433,6 +435,7 @@ public:
 
 			//Load excitation samples into GPU//
 			commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
+			commandQueue_.finish();
 
 			ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
 
@@ -450,6 +453,7 @@ public:
 			excitation_.resetIndex();
 
 			commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
+			commandQueue_.finish();
 			for (int k = 0; k != frames; ++k)
 				outbuf[k] = output_[k];
 
