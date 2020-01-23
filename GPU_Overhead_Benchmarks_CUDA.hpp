@@ -947,13 +947,12 @@ public:
 		cudaMalloc((void**)&deviceBufferInput, bufferSize_);
 		cudaMalloc((void**)&deviceBufferOutput, bufferSize_);
 
-		cudaMemcpy(deviceBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
-		cudaDeviceSynchronize();
-
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_simplebufferprocessing_standard" << std::endl;
 		if (isWarmup)
 		{
+			cudaMemcpy(deviceBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, deviceBufferInput, deviceBufferOutput);
 			cudaDeviceSynchronize();
 			cudaMemcpy(checkBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
@@ -962,6 +961,8 @@ public:
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_simplebufferprocessing_standard");
+			cudaMemcpy(deviceBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToDevice);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, deviceBufferInput, deviceBufferOutput);
 			cudaDeviceSynchronize();
 			cudaMemcpy(checkBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
@@ -972,7 +973,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -1003,21 +1003,22 @@ public:
 		cudaMallocManaged((void**)&hostUnifiedBufferInput, bufferSize_);
 		cudaMallocManaged((void**)&hostUnifiedBufferOutput, bufferSize_);
 
-		for (size_t i = 0; i != bufferLength_; ++i)
-			hostUnifiedBufferInput[i] = 42.0;
-
 		//Execute & Profile//
 		std::cout << "Executing test: cuda_simplebufferprocessing_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
+			cudaMemcpy(hostUnifiedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, hostUnifiedBufferInput, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_simplebufferprocessing_mappedmemory");
+			cudaMemcpy(hostUnifiedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, hostUnifiedBufferInput, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
 			cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
@@ -1028,7 +1029,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -1066,21 +1066,21 @@ public:
 		std::cout << "Executing test: cuda_simplebufferprocessing_pinned" << std::endl;
 		if (isWarmup)
 		{
-			for (size_t i = 0; i != bufferLength_; ++i)
-				hostPinnedBufferInput[i] = 42.0;
+			cudaMemcpy(hostPinnedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, hostPinnedBufferInput, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
+			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_simplebufferprocessing_pinned");
-			for (size_t i = 0; i != bufferLength_; ++i)
-				hostPinnedBufferInput[i] = 42.0;
+			cudaMemcpy(hostPinnedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			CUDA_Kernels::simpleBufferProcessing(globalWorkspace_, localWorkspace_, hostPinnedBufferInput, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
+			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_simplebufferprocessing_pinned");
 		}
@@ -1186,19 +1186,17 @@ public:
 		std::cout << "Executing test: cuda_complexbufferprocessing_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
-			for (size_t i = 0; i != bufferLength_; ++i)		//@ToDo - Check this is best way to show write ready for device. Wouldn't this mean standard way requires writing to host pointer as well?
-				hostUnifiedBufferInput[i] = 42.0;
+			cudaMemcpy(hostUnifiedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			CUDA_Kernels::complexBufferProcessing(globalWorkspace_, localWorkspace_, hostUnifiedBufferInput, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
+			cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_complexbufferprocessing_mappedmemory");
-			for (size_t i = 0; i != bufferLength_; ++i)		//@ToDo - Check this is best way to show write ready for device. Wouldn't this mean standard way requires writing to host pointer as well?
-				hostUnifiedBufferInput[i] = 42.0;
+			cudaMemcpy(hostUnifiedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			CUDA_Kernels::complexBufferProcessing(globalWorkspace_, localWorkspace_, hostUnifiedBufferInput, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
@@ -1210,7 +1208,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -1248,23 +1245,21 @@ public:
 		std::cout << "Executing test: cuda_complexbufferprocessing_mappedmemory" << std::endl;
 		if (isWarmup)
 		{
-			for (size_t i = 0; i != bufferLength_; ++i)		//@ToDo - Check this is best way to show write ready for device. Wouldn't this mean standard way requires writing to host pointer as well?
-				hostPinnedBufferInput[i] = 42.0;
+			cudaMemcpy(hostPinnedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			CUDA_Kernels::complexBufferProcessing(globalWorkspace_, localWorkspace_, hostPinnedBufferInput, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
+			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_complexbufferprocessing_mappedmemory");
-			for (size_t i = 0; i != bufferLength_; ++i)		//@ToDo - Check this is best way to show write ready for device. Wouldn't this mean standard way requires writing to host pointer as well?
-				hostPinnedBufferInput[i] = 42.0;
+			cudaMemcpy(hostPinnedBufferInput, hostBuffer, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			CUDA_Kernels::complexBufferProcessing(globalWorkspace_, localWorkspace_, hostPinnedBufferInput, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);	//@ToDo - Need this? The data is already in a host accessible pointer! Remove this.
+			cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_complexbufferprocessing_mappedmemory");
 		}
@@ -1272,7 +1267,6 @@ public:
 
 		//Check contents//
 		bool isSuccessful = true;
-		cudaMemcpy(checkBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
 		for (uint32_t i = 0; i != bufferLength_; ++i)
 		{
 			if (checkBuffer[i] != hostBuffer[i])
@@ -1321,6 +1315,7 @@ public:
 			CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, deviceSampleRate, deviceFrequency, deviceBufferOutput);
 			cudaDeviceSynchronize();
 			cudaMemcpy(outputBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_010_simplebuffersynthesis");
 		}
 		cudaBenchmarker_.elapsedTimer("cuda_010_simplebuffersynthesis");
@@ -1359,13 +1354,16 @@ public:
 		{
 			CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, hostUnifiedSampleRate, hostUnifiedFrequency, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
+			cudaMemcpy(outputBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_simplebuffersynthesis_mappedmemory");
 			CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, hostUnifiedSampleRate, hostUnifiedFrequency, hostUnifiedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(outputBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(outputBuffer, hostUnifiedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_simplebuffersynthesis_mappedmemory");
 		}
 		cudaBenchmarker_.elapsedTimer("cuda_simplebuffersynthesis_mappedmemory");
@@ -1404,13 +1402,16 @@ public:
 		{
 			CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, hostPinnedSampleRate, hostPinnedFrequency, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
+			cudaMemcpy(outputBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			cudaBenchmarker_.startTimer("cuda_simplebuffersynthesis_pinned");
 			CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, hostPinnedSampleRate, hostPinnedFrequency, hostPinnedBufferOutput);
 			cudaDeviceSynchronize();
-			cudaMemcpy(outputBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+			cudaMemcpy(outputBuffer, hostPinnedBufferOutput, bufferSize_, cudaMemcpyHostToHost);
+			cudaDeviceSynchronize();
 			cudaBenchmarker_.pauseTimer("cuda_simplebuffersynthesis_pinned");
 		}
 		cudaBenchmarker_.elapsedTimer("cuda_simplebuffersynthesis_pinned");
