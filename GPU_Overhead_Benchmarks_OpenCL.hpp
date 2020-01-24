@@ -1242,16 +1242,157 @@ public:
 	}
 	void cl_interruptedbufferprocessing_standard(size_t aN, bool isWarmup)
 	{
+		//Test preperation//
+		datatype* checkBuffer = new datatype[bufferLength_];
+		datatype* hostBuffer = new datatype[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			hostBuffer[i] = 42.0;
 
+		cl::Buffer deviceBufferSrc;
+		cl::Buffer deviceBufferDst;
+		openCL.createBuffer(context_, deviceBufferSrc, CL_MEM_READ_WRITE, bufferSize_);
+		openCL.createBuffer(context_, deviceBufferDst, CL_MEM_READ_WRITE, bufferSize_);
+
+		cl::Kernel simpleBufferProcessingKernel;
+		openCL.createKernel(context_, kernelProgram_, simpleBufferProcessingKernel, "cl_008_simplebufferprocessing");
+		openCL.setKernelArgument(simpleBufferProcessingKernel, deviceBufferSrc, 0, sizeof(cl_mem));
+		openCL.setKernelArgument(simpleBufferProcessingKernel, deviceBufferDst, 1, sizeof(cl_mem));
+
+		std::default_random_engine generator;
+		std::uniform_int_distribution<int> distribution(1, 10);
+
+		//Execute and average//
+		std::cout << "Executing test: cl_interruptedbufferprocessing_standard" << std::endl;
+		if (isWarmup)
+		{
+			openCL.writeBuffer(commandQueue_, deviceBufferSrc, bufferSize_, hostBuffer);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.enqueueKernel(commandQueue_, simpleBufferProcessingKernel, globalWorkspace_, localWorkspace_);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.readBuffer(commandQueue_, deviceBufferDst, bufferSize_, checkBuffer);
+			openCL.waitCommandQueue(commandQueue_);
+		}
+		for (int32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("cl_interruptedbufferprocessing_standard");
+
+			openCL.writeBuffer(commandQueue_, deviceBufferSrc, bufferSize_, hostBuffer);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.enqueueKernel(commandQueue_, simpleBufferProcessingKernel, globalWorkspace_, localWorkspace_);
+			openCL.waitCommandQueue(commandQueue_);
+			openCL.readBuffer(commandQueue_, deviceBufferDst, bufferSize_, checkBuffer);
+			openCL.waitCommandQueue(commandQueue_);
+
+			clBenchmarker_.pauseTimer("cl_interruptedbufferprocessing_standard");
+
+			int randomChance = distribution(generator);
+			if (randomChance > 5)
+				--i;
+
+		}
+		clBenchmarker_.elapsedTimer("cl_interruptedbufferprocessing_standard");
+
+		//Check contents//
+		bool isSuccessful = true;
+		openCL.readBuffer(commandQueue_, deviceBufferDst, bufferSize_, checkBuffer);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			float attenuatedSample = hostBuffer[i] * 0.5;
+			if (attenuatedSample != checkBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cl_interruptedbufferprocessing_standard successful: " << isSuccessful << std::endl << std::endl;
+
+		//Cleanup//
+		delete hostBuffer;
+		delete checkBuffer;
 	}
 	void cl_interruptedbufferprocessing_mappedmemory(size_t aN, bool isWarmup)
 	{
+		//Test preperation//
+		datatype* checkBuffer = new datatype[bufferLength_];
+		datatype* hostBuffer = new datatype[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			hostBuffer[i] = 42.0;
 
+		void* mappedMemory;
+		cl::Buffer deviceBufferSrc;
+		cl::Buffer deviceBufferDst;
+		openCL.createBuffer(context_, deviceBufferSrc, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
+		openCL.createBuffer(context_, deviceBufferDst, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
+
+		cl::Kernel simpleBufferProcessingKernel;
+		openCL.createKernel(context_, kernelProgram_, simpleBufferProcessingKernel, "cl_008_simplebufferprocessing");
+		openCL.setKernelArgument(simpleBufferProcessingKernel, deviceBufferSrc, 0, sizeof(cl_mem));
+		openCL.setKernelArgument(simpleBufferProcessingKernel, deviceBufferDst, 1, sizeof(cl_mem));
+
+		std::default_random_engine generator;
+		std::uniform_int_distribution<int> distribution(1, 10);
+
+		//Execute and average//
+		std::cout << "Executing test: cl_interruptedbufferprocessing_mappedmemory" << std::endl;
+		if (isWarmup)
+		{
+			mappedMemory = openCL.mapMemory(commandQueue_, deviceBufferSrc, CL_MAP_WRITE, bufferSize_);
+			std::memcpy(mappedMemory, hostBuffer, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferSrc, mappedMemory, bufferSize_);
+
+			openCL.enqueueKernel(commandQueue_, simpleBufferProcessingKernel, globalWorkspace_, localWorkspace_);
+			openCL.waitCommandQueue(commandQueue_);
+
+			mappedMemory = openCL.mapMemory(commandQueue_, deviceBufferDst, CL_MAP_READ, bufferSize_);
+			std::memcpy(checkBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferDst, mappedMemory, bufferSize_);
+		}
+		for (int32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("cl_interruptedbufferprocessing_mappedmemory");
+
+			mappedMemory = openCL.mapMemory(commandQueue_, deviceBufferSrc, CL_MAP_WRITE, bufferSize_);
+			std::memcpy(mappedMemory, hostBuffer, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferSrc, mappedMemory, bufferSize_);
+
+			openCL.enqueueKernel(commandQueue_, simpleBufferProcessingKernel, globalWorkspace_, localWorkspace_);
+			openCL.waitCommandQueue(commandQueue_);
+
+			mappedMemory = openCL.mapMemory(commandQueue_, deviceBufferDst, CL_MAP_READ, bufferSize_);
+			std::memcpy(checkBuffer, mappedMemory, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferDst, mappedMemory, bufferSize_);
+
+			clBenchmarker_.pauseTimer("cl_interruptedbufferprocessing_mappedmemory");
+
+			int randomChance = distribution(generator);
+			if (randomChance > 5)
+				--i;
+
+		}
+		clBenchmarker_.elapsedTimer("cl_interruptedbufferprocessing_mappedmemory");
+
+		//Check contents//
+		bool isSuccessful = true;
+		openCL.readBuffer(commandQueue_, deviceBufferDst, bufferSize_, checkBuffer);
+		for (uint32_t i = 0; i != bufferLength_; ++i)
+		{
+			float attenuatedSample = hostBuffer[i] * 0.5;
+			if (attenuatedSample != checkBuffer[i])
+			{
+				isSuccessful = false;
+				break;
+			}
+		}
+		std::cout << "cl_interruptedbufferprocessing_mappedmemory successful: " << isSuccessful << std::endl << std::endl;
+
+		//Cleanup//
+		delete hostBuffer;
+		delete checkBuffer;
 	}
 
 	void cl_unidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
-		//Prepate new file for cl_bidirectional_processing//
+		//Prepare new file for cl_bidirectional_processing//
 		std::string strBenchmarkFileName = "cl_unidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
@@ -1304,7 +1445,7 @@ public:
 	}
 	void cl_unidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
-		//Prepate new file for cl_bidirectional_processing//
+		//Prepare new file for cl_bidirectional_processing//
 		std::string strBenchmarkFileName = "cl_unidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
@@ -1372,7 +1513,7 @@ public:
 	}
 	void cl_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
-		//Prepate new file for cl_bidirectional_processing//
+		//Prepare new file for cl_bidirectional_processing//
 		std::string strBenchmarkFileName = "cl_bidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
@@ -1445,7 +1586,7 @@ public:
 	}
 	void cl_bidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
-		//Prepate new file for cl_bidirectional_processing//
+		//Prepare new file for cl_bidirectional_processing//
 		std::string strBenchmarkFileName = "cl_bidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
@@ -1577,91 +1718,6 @@ public:
 		delete inBuf;
 		delete outBuf;
 	}
-
-	//void cl_012_interruptedbufferprocessing(size_t aN, bool isWarmup)
-	//{
-	//	//Test preperation//
-	//	//openCL.createKernelProgram("resources/kernels/GPU_Overhead_Benchmarks.cl", "");
-	//	//openCL.createKernel("cl_012_interruptedbufferprocessing");
-	//	setLocalWorkspace(bufferLength_);
-
-	//	void* mappedMemory;
-
-	//	bool isBufferCorrect = true;		//Variable indicating if buffer requires recalculating.
-	//	std::default_random_engine generator;
-	//	std::uniform_int_distribution<int> distribution(1, 10);
-	//	float* srcMemoryBuffer = new float[bufferLength_];
-	//	for (size_t i = 0; i != bufferLength_; ++i)
-	//		srcMemoryBuffer[i] = 42.0;
-	//	float* dstMemoryBuffer = new float[bufferLength_];
-	//	for (size_t i = 0; i != bufferLength_; ++i)
-	//		dstMemoryBuffer[i] = 0.0;
-
-	//	openCL.createBuffer("inputBuffer", CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
-	//	openCL.createBuffer("outputBuffer", CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
-
-	//	openCL.setKernelArgument("cl_012_interruptedbufferprocessing", "inputBuffer", 0, sizeof(cl_mem));
-	//	openCL.setKernelArgument("cl_012_interruptedbufferprocessing", "outputBuffer", 1, sizeof(cl_mem));
-
-	//	//Execute and average//
-	//	std::cout << "Executing test: cl_012_interruptedbufferprocessing" << std::endl;
-	//	if (isWarmup)
-	//	{
-	//		mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
-	//		memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
-	//		openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
-
-	//		openCL.enqueueKernel("cl_012_interruptedbufferprocessing");
-
-	//		mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
-	//		memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
-	//		openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
-	//	}
-	//	for (int32_t i = 0; i != aN; ++i)
-	//	{
-	//		clBenchmarker_.startTimer("cl_012_interruptedbufferprocessing");
-
-	//		mappedMemory = openCL.mapMemory("inputBuffer", bufferSize_);
-	//		memcpy(mappedMemory, srcMemoryBuffer, bufferSize_);
-	//		openCL.unmapMemory("inputBuffer", mappedMemory, bufferSize_);
-
-	//		openCL.enqueueKernel("cl_012_interruptedbufferprocessing");
-	//		openCL.waitKernel();
-
-	//		mappedMemory = openCL.mapMemory("outputBuffer", bufferSize_);
-	//		memcpy(dstMemoryBuffer, mappedMemory, bufferSize_);
-	//		openCL.unmapMemory("outputBuffer", mappedMemory, bufferSize_);
-	//		openCL.waitKernel();
-
-	//		clBenchmarker_.pauseTimer("cl_012_interruptedbufferprocessing");
-
-	//		int randomChance = distribution(generator);
-	//		if (randomChance > 5)
-	//			--i;
-	//			
-	//	}
-	//	clBenchmarker_.elapsedTimer("cl_012_interruptedbufferprocessing");
-
-	//	//Check contents//
-	//	bool isSuccessful = true;
-	//	for (uint32_t i = 0; i != bufferLength_; ++i)
-	//	{
-	//		//Calculate simple attenuation on CPU to compare//
-	//		srcMemoryBuffer[i] = srcMemoryBuffer[i] * 0.5;
-	//		if (srcMemoryBuffer[i] != dstMemoryBuffer[i])
-	//		{
-	//			isSuccessful = false;
-	//			break;
-	//		}
-	//	}
-	//	std::cout << "cl_012_interruptedbufferprocessing successful: " << isSuccessful << std::endl << std::endl;
-
-	//	//Cleanup//
-	//	openCL.deleteBuffer("inputBuffer");
-	//	openCL.deleteBuffer("outputBuffer");
-	//	delete srcMemoryBuffer;
-	//	delete dstMemoryBuffer;
-	//}
 
 	//void unidirectionalBaseline(size_t aN, size_t sampleRate)
 	//{

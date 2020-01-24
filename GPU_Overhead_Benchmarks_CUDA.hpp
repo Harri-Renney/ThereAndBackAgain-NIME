@@ -1431,15 +1431,172 @@ public:
 
 	void cuda_unidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepare new file for cuda_unidirectional_baseline//
+		std::string strBenchmarkFileName = "cuda_unidirectional_baseline_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		cudaBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferLength);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
+				inBuf[i] = i;
+
+			void* deviceBufferOutput;
+			cudaMalloc((void**)&deviceBufferOutput, currentBufferSize);
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				cudaBenchmarker_.startTimer(strBenchmarkName);
+				CUDA_Kernels::nullKernelExecute();
+				cudaDeviceSynchronize();
+				cudaMemcpy(outputBuffer, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+				cudaDeviceSynchronize();
+				cudaBenchmarker_.pauseTimer(strBenchmarkName);
+
+				numSamplesComputed += currentBufferLength;
+			}
+			cudaBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
 	}
 	void cuda_unidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepare new file for cuda_unidirectional_processing//
+		std::string strBenchmarkFileName = "cuda_unidirectional_processing_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		cudaBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferLength);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+
+			const int sampleRate = 44100;
+			const float frequency = 1400.0;
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
+				inBuf[i] = i;
+
+			int* deviceSampleRate;
+			float* deviceFrequency;
+			float* deviceBufferOutput;
+			cudaMalloc((void**)&deviceSampleRate, sizeof(int));
+			cudaMalloc((void**)&deviceFrequency, sizeof(float));
+			cudaMalloc((void**)&deviceBufferOutput, bufferSize_);
+
+			cudaMemcpy(deviceFrequency, &sampleRate, sizeof(int), cudaMemcpyHostToDevice);
+			cudaMemcpy(deviceFrequency, &frequency, sizeof(float), cudaMemcpyHostToDevice);
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				cudaBenchmarker_.startTimer(strBenchmarkName);
+				CUDA_Kernels::simpleBufferSynthesis(globalWorkspace_, localWorkspace_, deviceSampleRate, deviceFrequency, deviceBufferOutput);
+				cudaDeviceSynchronize();
+				cudaMemcpy(outBuf, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+				cudaDeviceSynchronize();
+				cudaBenchmarker_.pauseTimer(strBenchmarkName);
+
+				//Log audio for inspection if necessary//
+				for (int j = 0; j != currentBufferSize; ++j)
+					soundBuffer[numSamplesComputed + j] = outBuf[j];
+
+				numSamplesComputed += currentBufferLength;
+			}
+			cudaBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			//Save audio to file for inspection//
+			outputAudioFile("cuda_unidirectional_processing.wav", soundBuffer, aFrameRate);
+			std::cout << "cuda_unidirectional_processing successful: Inspect audio log \"cuda_unidirectional_processing.wav\"" << std::endl << std::endl;
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
 	}
 	void cuda_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
+		//Prepare new file for cuda_bidirectional_baseline//
+		std::string strBenchmarkFileName = "cuda_bidirectional_baseline_framerate";
+		std::string strFrameRate = std::to_string(aFrameRate);
+		strBenchmarkFileName.append(strFrameRate);
+		strBenchmarkFileName.append(".csv");
+		cudaBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Buffer_Size", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
 
+		uint64_t numSamplesComputed = 0;
+		for (size_t i = 0; i != bufferSizesLength; ++i)
+		{
+			uint64_t currentBufferLength = bufferSizes[i];
+			uint64_t currentBufferSize = currentBufferLength * sizeof(float);
+			setBufferLength(currentBufferLength);
+			if (currentBufferLength > aFrameRate)
+				break;
+
+			std::string strBenchmarkName = "";
+			std::string strBufferSize = std::to_string(currentBufferLength);
+			strBenchmarkName.append(strBufferSize);
+
+			uint64_t numSamplesComputed = 0;
+			float* inBuf = new float[currentBufferLength];
+			float* outBuf = new float[currentBufferLength];
+			for (size_t i = 0; i != currentBufferLength; ++i)
+				inBuf[i] = i;
+
+			void* deviceBufferInput;
+			void* deviceBufferOutput;
+			cudaMalloc((void**)&deviceBufferInput, currentBufferSize);
+			cudaMalloc((void**)&deviceBufferOutput, currentBufferSize);
+
+			while (numSamplesComputed < aFrameRate)
+			{
+				cudaBenchmarker_.startTimer(strBenchmarkName);
+				cudaMemcpy(deviceBufferInput, inBuf, bufferSize_, cudaMemcpyHostToDevice);
+				cudaDeviceSynchronize();
+				CUDA_Kernels::nullKernelExecute();
+				cudaDeviceSynchronize();
+				cudaMemcpy(outBuf, deviceBufferOutput, bufferSize_, cudaMemcpyDeviceToHost);
+				cudaDeviceSynchronize();
+				cudaBenchmarker_.pauseTimer(strBenchmarkName);
+
+				numSamplesComputed += currentBufferLength;
+			}
+			cudaBenchmarker_.elapsedTimer(strBenchmarkName);
+
+			numSamplesComputed = 0;
+
+			delete inBuf;
+			delete outBuf;
 	}
 	void cuda_bidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
