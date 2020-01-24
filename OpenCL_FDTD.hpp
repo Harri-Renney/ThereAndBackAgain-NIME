@@ -206,7 +206,7 @@ public:
 		cl::Platform::get(&platforms);
 
 		//Create contex properties for first platform//
-		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[1])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
 
 		//Create context context using platform for GPU device//
 		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);

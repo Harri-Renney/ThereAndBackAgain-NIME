@@ -31,10 +31,10 @@ int main()
 	//clBenchmark.cl_complexbuffersynthesis_standard(1, true);
 	//clBenchmark.cl_complexbuffersynthesis_mappedmemory(1, true);
 
-	clBenchmark.cl_simplebufferprocessing_standard(1000, true);
-	clBenchmark.cl_simplebufferprocessing_mappedmemory(1000, true);
-	clBenchmark.cl_interruptedbufferprocessing_standard(1000, true);
-	clBenchmark.cl_interruptedbufferprocessing_mappedmemory(1000, true);
+	//clBenchmark.cl_simplebufferprocessing_standard(1000, true);
+	//clBenchmark.cl_simplebufferprocessing_mappedmemory(1000, true);
+	//clBenchmark.cl_interruptedbufferprocessing_standard(1000, true);
+	//clBenchmark.cl_interruptedbufferprocessing_mappedmemory(1000, true);
 
 	//clBenchmark.cl_unidirectional_baseline(44100, true);
 	//clBenchmark.cl_unidirectional_processing(44100, true);
@@ -43,29 +43,29 @@ int main()
 
 	//clBenchmark.runGeneralBenchmarks(10);
 	
-	//GPU_Overhead_Benchmarks_CUDA::printAvailableDevices();
+	GPU_Overhead_Benchmarks_CUDA::printAvailableDevices();
 
-	////Check CUDA support and device availability//
-	//bool isCUDA = true;
-	//int cudaRuntimeVersion = 0;
-	//int cudaDriverVersion = 0;
-	//cudaRuntimeGetVersion(&cudaRuntimeVersion);
-	//cudaDriverGetVersion(&cudaDriverVersion);
-	//std::cout << "CUDA runtime version: " << cudaRuntimeVersion << std::endl;
-	//std::cout << "CUDA driver version: " << cudaDriverVersion << std::endl;
-	//if(cudaRuntimeGetVersion == 0 || cudaDriverVersion == 0)
-	//{
-	//	std::cout << "Necessary CUDA runtime or driver version missing" << std::endl;
-	//	isCUDA = false;
-	//}
+	//Check CUDA support and device availability//
+	bool isCUDA = true;
+	int cudaRuntimeVersion = 0;
+	int cudaDriverVersion = 0;
+	cudaRuntimeGetVersion(&cudaRuntimeVersion);
+	cudaDriverGetVersion(&cudaDriverVersion);
+	std::cout << "CUDA runtime version: " << cudaRuntimeVersion << std::endl;
+	std::cout << "CUDA driver version: " << cudaDriverVersion << std::endl;
+	if(cudaRuntimeGetVersion == 0 || cudaDriverVersion == 0)
+	{
+		std::cout << "Necessary CUDA runtime or driver version missing" << std::endl;
+		isCUDA = false;
+	}
 
-	//int numCudaDevices = GPU_Overhead_Benchmarks_CUDA::isCudaAvailable();
-	//std::cout << "Number of available CUDA devices: " << numCudaDevices << std::endl;
-	//if(numCudaDevices == 0)
-	//{
-	//	std::cout << "A necessary CUDA device is not detected" << std::endl;
-	//	isCUDA = false;
-	//}
+	int numCudaDevices = GPU_Overhead_Benchmarks_CUDA::isCudaAvailable();
+	std::cout << "Number of available CUDA devices: " << numCudaDevices << std::endl;
+	if(numCudaDevices == 0)
+	{
+		std::cout << "A necessary CUDA device is not detected" << std::endl;
+		isCUDA = false;
+	}
 
 	if (isCUDA)
 	{
@@ -95,6 +95,13 @@ int main()
 		//cudaBenchmark.runGeneralBenchmarks(10);
 
 		//cudaBenchmark.cuda_devicetransferkernel_standard(10, true);
+
+		//cudaBenchmark.cuda_complexbuffersynthesis_standard(1, true);
+		//cudaBenchmark.cuda_complexbuffersynthesis_mappedmemory(1, true);
+		//cudaBenchmark.cuda_complexbuffersynthesis_pinned(1, true);
+
+		//cudaBenchmark.runGeneralBenchmarks(1);
+		cudaBenchmark.runRealTimeBenchmarks(44100);
 	}
 	else
 		std::cout << "CUDA device or support no present to benchmark CUDA" << std::endl;
