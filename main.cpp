@@ -6,105 +6,48 @@
 
 int main()
 {
+	//////////
+	//OpenCL//
+	//////////
+
 	OpenCL_Wrapper::printAvailableDevices();
 
-	// 0,0 = CPU
-	// 0,1 = Intel GPU
-	// 1,0 = AMD GPU
-	GPU_Overhead_Benchmarks_OpenCL clBenchmark(1,0);
+	//Check OpenCL support and device availability//
+	bool isOpenCl = GPU_Overhead_Benchmarks_OpenCL::openclCompatible();
+
+	if (isOpenCl)
+	{
+		std::cout << "OpenCL device and support detected." << std::endl;
+		std::cout << "Beginning OpenCL benchmarking" << std::endl << std::endl;
+		GPU_Overhead_Benchmarks_OpenCL clBenchmark(1, 0);
+
+		clBenchmark.runGeneralBenchmarks(1000);
+		clBenchmark.runRealTimeBenchmarks(44100);
+	}
+	else
+		std::cout << "OpenCL device or support not present to benchmark OpenCL." << std::endl;
 	
-	//@ToDo - Sort out way of dynamically working out localworkgroupsize from buffer size//
-	//clBenchmark.setBufferSize(GPU_Overhead_Benchmarks_OpenCL::MEGA_BYTE);
-	clBenchmark.setBufferLength(44100);
-	//clBenchmark.setBufferSize(1024 * sizeof(float));
-	//clBenchmark.setBufferSize(88200 * sizeof(float));
+	////////
+	//CUDA//
+	////////
 
-	//clBenchmark.cl_cputogpu_standard(1000, true);
-	//clBenchmark.cl_cputogpu_mappedmemory(1000, true);
-	
-	//clBenchmark.runUnidirectionalBenchmarks(10, 44100);
-	//clBenchmark.runBidirectionalBenchmarks(1, 44100);
-	//clBenchmark.bidirectionalComplexSynthesis(1, 44100);
-	//
-	//clBenchmark.writeToGPUMapped(1000);
-
-	//clBenchmark.cl_complexbuffersynthesis_standard(1, true);
-	//clBenchmark.cl_complexbuffersynthesis_mappedmemory(1, true);
-
-	//clBenchmark.cl_simplebufferprocessing_standard(1000, true);
-	//clBenchmark.cl_simplebufferprocessing_mappedmemory(1000, true);
-	//clBenchmark.cl_interruptedbufferprocessing_standard(1000, true);
-	//clBenchmark.cl_interruptedbufferprocessing_mappedmemory(1000, true);
-
-	//clBenchmark.cl_unidirectional_baseline(44100, true);
-	//clBenchmark.cl_unidirectional_processing(44100, true);
-	//clBenchmark.cl_bidirectional_baseline(44100, true);
-	//clBenchmark.cl_bidirectional_processing(44100, true);
-
-	//clBenchmark.runGeneralBenchmarks(10);
-	
 	GPU_Overhead_Benchmarks_CUDA::printAvailableDevices();
 
 	//Check CUDA support and device availability//
-	bool isCUDA = true;
-	int cudaRuntimeVersion = 0;
-	int cudaDriverVersion = 0;
-	cudaRuntimeGetVersion(&cudaRuntimeVersion);
-	cudaDriverGetVersion(&cudaDriverVersion);
-	std::cout << "CUDA runtime version: " << cudaRuntimeVersion << std::endl;
-	std::cout << "CUDA driver version: " << cudaDriverVersion << std::endl;
-	if(cudaRuntimeGetVersion == 0 || cudaDriverVersion == 0)
-	{
-		std::cout << "Necessary CUDA runtime or driver version missing" << std::endl;
-		isCUDA = false;
-	}
+	bool isCuda = GPU_Overhead_Benchmarks_CUDA::cudaCompatible();
 
-	int numCudaDevices = GPU_Overhead_Benchmarks_CUDA::isCudaAvailable();
-	std::cout << "Number of available CUDA devices: " << numCudaDevices << std::endl;
-	if(numCudaDevices == 0)
-	{
-		std::cout << "A necessary CUDA device is not detected" << std::endl;
-		isCUDA = false;
-	}
-
-	if (isCUDA)
+	if (isCuda)
 	{
 		std::cout << "CUDA device and support detected." << std::endl;
 		std::cout << "Beginning CUDA benchmarking" << std::endl << std::endl;
 		GPU_Overhead_Benchmarks_CUDA cudaBenchmark = GPU_Overhead_Benchmarks_CUDA();
-		//cudaBenchmark.setBufferSize(GPU_Overhead_Benchmarks_OpenCL::GIGA_BYTE);
-		//cudaBenchmark.setBufferSize(GPU_Overhead_Benchmarks_OpenCL::MEGA_BYTE);
-		cudaBenchmark.setBufferLength(44100);
-		//cudaBenchmark.setBufferLength(44100);
-		//cudaBenchmark.cuda_000_nullkernel(10, true);
-		//cudaBenchmark.cuda_001_CPUtoGPU(1000, true);
-		//cudaBenchmark.cuda_002_GPUtoCPU(10, true);
-		//cudaBenchmark.cuda_003_CPUtoGPUtoCPU(10, true);
-		//cudaBenchmark.cuda_005_cpymemory(10, true);
-		//cudaBenchmark.cuda_006_cpymemorykernel(10, true);
-		//cudaBenchmark.cuda_008_simplebufferprocessing(1000, true);
-		//cudaBenchmark.cuda_011_complexbuffersynthesis(1, true);
 
-		//cudaBenchmark.cuda_cputogpu_standard(10, true);
-		//cudaBenchmark.cuda_cputogpu_mappedmemory(10, true);
-		//cudaBenchmark.cuda_cputogpu_pinned(10, true);
 
-		//cudaBenchmark.cuda_cputogputocpu_mappedmemory(1000, true);
-		//cudaBenchmark.cuda_cputogputocpu_pinnedmemory(1000, true);
-
-		//cudaBenchmark.runGeneralBenchmarks(10);
-
-		//cudaBenchmark.cuda_devicetransferkernel_standard(10, true);
-
-		//cudaBenchmark.cuda_complexbuffersynthesis_standard(1, true);
-		//cudaBenchmark.cuda_complexbuffersynthesis_mappedmemory(1, true);
-		//cudaBenchmark.cuda_complexbuffersynthesis_pinned(1, true);
-
-		//cudaBenchmark.runGeneralBenchmarks(1);
+		cudaBenchmark.runGeneralBenchmarks(1000);
 		cudaBenchmark.runRealTimeBenchmarks(44100);
 	}
 	else
-		std::cout << "CUDA device or support no present to benchmark CUDA" << std::endl;
+		std::cout << "CUDA device or support not present to benchmark CUDA" << std::endl;
 
 	char haltc;
 	std::cin >> haltc;

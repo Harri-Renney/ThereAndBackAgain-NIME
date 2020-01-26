@@ -5,10 +5,6 @@
 class OpenCL_Wrapper
 {
 private:
-	static const uint32_t GIGA_BYTE = 1024 * 1024 * 1024;
-	static const uint32_t MEGA_BYTE = 1024 * 1024;
-	static const uint32_t KILO_BYTE = 1024;
-
 	//OpenGL Inter-operability//
 	cl::Context contextOpenGL_;
 	uint32_t vertexBufferObject_;
@@ -83,7 +79,6 @@ public:
 			std::cout << "ERROR creating kernel. Status code: " << errorStatus_ << std::endl;
 	}
 
-	// . //
 	void createBuffer(cl::Context& aContext, cl::Buffer& aBuffer, int aMemFlags, unsigned int aBufferSize)
 	{
 		aBuffer = cl::Buffer(aContext, aMemFlags, aBufferSize);
@@ -101,7 +96,6 @@ public:
 		clReleaseMemObject(aBuffer());
 	}
 
-	// . //
 	void setKernelArgument(cl::Kernel& aKernel, cl::Buffer& aBuffer, int aIndex, int aSize)
 	{
 		aKernel.setArg(aIndex, aSize, &aBuffer);
@@ -114,10 +108,11 @@ public:
 	void enqueueKernel(cl::CommandQueue& aCommandQueue, cl::Kernel& aKernel, cl::NDRange aGlobalSize, cl::NDRange aLocalSize)
 	{
 		aCommandQueue.enqueueNDRangeKernel(aKernel, cl::NullRange/*globaloffset*/, aGlobalSize, aLocalSize, NULL, NULL);
+	}
 
-		//Add OpenCL profiling//
-		//aCommandQueue.enqueueNDRangeKernel(aKernel, cl::NullRange/*globaloffset*/, aGlobalSize, aLocalSize, NULL, &kernelBenchmark_);
-		//kernelBenchmark_.wait();
+	void enqueueKernel(cl::CommandQueue& aCommandQueue, cl::Kernel& aKernel, cl::NDRange aGlobalSize, cl::NDRange aLocalSize, cl::Event& aEvent)
+	{
+		aCommandQueue.enqueueNDRangeKernel(aKernel, cl::NullRange/*globaloffset*/, aGlobalSize, aLocalSize, NULL, &aEvent);
 	}
 
 	void enqueueCopyBuffer(cl::CommandQueue& aCommandQueue, cl::Buffer& aSrcBuffer, cl::Buffer& aDstBuffer, const uint32_t aSize)
@@ -134,9 +129,26 @@ public:
 		aCommandQueue.enqueueUnmapMemObject(aBuffer, aPtr, NULL, NULL);
 	}
 
+	void waitEvent(cl::Event& aEvent)
+	{
+		aEvent.wait();
+	}
+
 	void waitCommandQueue(cl::CommandQueue& aCommandQueue)
 	{
 		aCommandQueue.finish();
+	}
+
+	void profileEvent(cl::Event& aEvent)
+	{
+		cl_ulong time_start;
+		cl_ulong time_end;
+
+		clGetEventProfilingInfo(aEvent(), CL_PROFILING_COMMAND_SUBMIT, sizeof(time_start), &time_start, NULL);
+		clGetEventProfilingInfo(aEvent(), CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+
+		double nanoSeconds = time_end - time_start;
+		printf("OpenCl Execution time is: %0.8f milliseconds \n", nanoSeconds / 1000000.0);
 	}
 
 	uint32_t getMaxLocalWorkspace(cl::Device aDevice)

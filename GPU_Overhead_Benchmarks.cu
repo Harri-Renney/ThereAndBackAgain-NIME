@@ -70,6 +70,9 @@ void simple_buffer_synthesis(int* sampleRate, float* frequency, float* outputBuf
 	outputBuffer[idx] = currentSample;
 }
 
+__constant__ float propagationCoeff;
+__constant__ float dampingCoeff;
+//@ToDo - Tri using loop for to fill buffer and __syncthreads(). Won't work, this is for thread synchonization only!!
 __global__
 void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, float* boundaryGain, int* samplesIndex, float* samples, float* excitation, int* listenerPosition, int* excitationPosition, float* propagationFactor, float* dampingFactor, int* rotationIndex)
 {
