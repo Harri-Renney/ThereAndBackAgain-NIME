@@ -20,9 +20,15 @@ int main()
 		std::cout << "OpenCL device and support detected." << std::endl;
 		std::cout << "Beginning OpenCL benchmarking" << std::endl << std::endl;
 		GPU_Overhead_Benchmarks_OpenCL clBenchmark(1, 0);
+	
+		clBenchmark.setBufferLength(44100);
 
-		clBenchmark.runGeneralBenchmarks(1000);
-		clBenchmark.runRealTimeBenchmarks(44100);
+		clBenchmark.cl_mappingmemory(1000);
+	
+		//clBenchmark.runGeneralBenchmarks(10, true);
+		//clBenchmark.runRealTimeBenchmarks(44100, true);
+	
+		//clBenchmark.cl_bidirectional_processing(44100, true);
 	}
 	else
 		std::cout << "OpenCL device or support not present to benchmark OpenCL." << std::endl;
@@ -34,20 +40,21 @@ int main()
 	GPU_Overhead_Benchmarks_CUDA::printAvailableDevices();
 
 	//Check CUDA support and device availability//
-	bool isCuda = GPU_Overhead_Benchmarks_CUDA::cudaCompatible();
-
-	if (isCuda)
-	{
-		std::cout << "CUDA device and support detected." << std::endl;
-		std::cout << "Beginning CUDA benchmarking" << std::endl << std::endl;
-		GPU_Overhead_Benchmarks_CUDA cudaBenchmark = GPU_Overhead_Benchmarks_CUDA();
-
-
-		cudaBenchmark.runGeneralBenchmarks(1000);
-		cudaBenchmark.runRealTimeBenchmarks(44100);
-	}
-	else
-		std::cout << "CUDA device or support not present to benchmark CUDA" << std::endl;
+	//bool isCuda = GPU_Overhead_Benchmarks_CUDA::cudaCompatible();
+	//
+	//if (isCuda)
+	//{
+	//	std::cout << "CUDA device and support detected." << std::endl;
+	//	std::cout << "Beginning CUDA benchmarking" << std::endl << std::endl;
+	//	GPU_Overhead_Benchmarks_CUDA cudaBenchmark = GPU_Overhead_Benchmarks_CUDA();
+	//
+	//	cudaBenchmark.setBufferLength(44100);
+	//
+	//	cudaBenchmark.runGeneralBenchmarks(10, true);
+	//	//cudaBenchmark.runRealTimeBenchmarks(44100, true);
+	//}
+	//else
+	//	std::cout << "CUDA device or support not present to benchmark CUDA" << std::endl;
 
 	char haltc;
 	std::cin >> haltc;

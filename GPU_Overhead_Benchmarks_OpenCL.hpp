@@ -74,7 +74,7 @@ public:
 		localWorkspace_ = cl::NDRange(256);
 	}
 
-	void runGeneralBenchmarks(uint64_t aNumRepetitions) override
+	void runGeneralBenchmarks(uint64_t aNumRepetitions, bool isWarmup) override
 	{
 		for (uint32_t i = 0; i != 20; ++i)
 		{
@@ -88,35 +88,35 @@ public:
 			setBufferLength(currentBufferSize);
 
 			//Run tests with setup//
-			cl_nullkernel(aNumRepetitions, true);
-			cl_cputogpu_standard(aNumRepetitions, true);
-			cl_cputogpu_pinned(aNumRepetitions, true);
-			cl_gputocpu_standard(aNumRepetitions, true);
-			cl_gputocpu_pinned(aNumRepetitions, true);
-			cl_cputogputocpu_standard(aNumRepetitions, true);
-			cl_cputogputocpu_pinned(aNumRepetitions, true);
-			cl_devicetransfer_standard(aNumRepetitions, true);
-			cl_devicetransfer_pinned(aNumRepetitions, true);
-			cl_devicetransferkernel_standard(aNumRepetitions, true);
-			cl_devicetransferkernel_pinned(aNumRepetitions, true);
-			cl_simplebufferprocessing_standard(aNumRepetitions, true);
-			cl_simplebufferprocessing_pinned(aNumRepetitions, true);
-			cl_complexbufferprocessing_standard(aNumRepetitions, true);
-			cl_complexbufferprocessing_pinned(aNumRepetitions, true);
-			cl_simplebuffersynthesis_standard(aNumRepetitions, true);
-			cl_simplebuffersynthesis_pinned(aNumRepetitions, true);
-			cl_complexbuffersynthesis_standard(aNumRepetitions, true);
-			cl_complexbuffersynthesis_pinned(aNumRepetitions, true);
-			cl_interruptedbufferprocessing_standard(aNumRepetitions, true);
-			cl_interruptedbufferprocessing_pinned(aNumRepetitions, true);
+			cl_nullkernel(aNumRepetitions, isWarmup);
+			cl_cputogpu_standard(aNumRepetitions, isWarmup);
+			cl_cputogpu_pinned(aNumRepetitions, isWarmup);
+			cl_gputocpu_standard(aNumRepetitions, isWarmup);
+			cl_gputocpu_pinned(aNumRepetitions, isWarmup);
+			cl_cputogputocpu_standard(aNumRepetitions, isWarmup);
+			cl_cputogputocpu_pinned(aNumRepetitions, isWarmup);
+			cl_devicetransfer_standard(aNumRepetitions, isWarmup);
+			cl_devicetransfer_pinned(aNumRepetitions, isWarmup);
+			cl_devicetransferkernel_standard(aNumRepetitions, isWarmup);
+			cl_devicetransferkernel_pinned(aNumRepetitions, isWarmup);
+			cl_simplebufferprocessing_standard(aNumRepetitions, isWarmup);
+			cl_simplebufferprocessing_pinned(aNumRepetitions, isWarmup);
+			cl_complexbufferprocessing_standard(aNumRepetitions, isWarmup);
+			cl_complexbufferprocessing_pinned(aNumRepetitions, isWarmup);
+			cl_simplebuffersynthesis_standard(aNumRepetitions, isWarmup);
+			cl_simplebuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			cl_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
+			cl_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			cl_interruptedbufferprocessing_standard(aNumRepetitions, isWarmup);
+			cl_interruptedbufferprocessing_pinned(aNumRepetitions, isWarmup);
 		}
 	}
-	void runRealTimeBenchmarks(uint64_t aFrameRate) override
+	void runRealTimeBenchmarks(uint64_t aFrameRate, bool isWarmup) override
 	{
-		cl_unidirectional_baseline(aFrameRate, true);
-		cl_unidirectional_processing(aFrameRate, true);
-		cl_bidirectional_baseline(aFrameRate, true);
-		cl_bidirectional_processing(aFrameRate, true);
+		cl_unidirectional_baseline(aFrameRate, isWarmup);
+		cl_unidirectional_processing(aFrameRate, isWarmup);
+		cl_bidirectional_baseline(aFrameRate, isWarmup);
+		cl_bidirectional_processing(aFrameRate, isWarmup);
 	}
 
 	void cl_nullkernel(size_t aN, bool isWarmup)
@@ -136,12 +136,13 @@ public:
 		for (uint32_t i = 0; i != aN; ++i)
 		{
 			clBenchmarker_.startTimer("cl_nullkernel");
-			openCL.enqueueKernel(commandQueue_, nullKernel, globalWorkspace_, localWorkspace_, clEvent);
-			openCL.waitEvent(clEvent);
+			openCL.enqueueKernel(commandQueue_, nullKernel, globalWorkspace_, localWorkspace_);
+			//openCL.enqueueKernel(commandQueue_, nullKernel, globalWorkspace_, localWorkspace_, clEvent);
+			//openCL.waitEvent(clEvent);
 			openCL.waitCommandQueue(commandQueue_);
 			clBenchmarker_.pauseTimer("cl_nullkernel");
 
-			openCL.profileEvent(clEvent);
+			//openCL.profileEvent(clEvent);
 		}
 		clBenchmarker_.elapsedTimer("cl_nullkernel");
 
@@ -1163,7 +1164,7 @@ public:
 		std::cout << "Executing test: cl_complexbuffersynthesis_standard" << std::endl;
 		if (isWarmup)
 		{
-			fdtdSynth.fillBuffer(bufferLength_, inBuf, outBuf);
+			fdtdSynth.fillBuffer(1, inBuf, outBuf);
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
@@ -1224,7 +1225,7 @@ public:
 		std::cout << "Executing test: cl_complexbuffersynthesis_pinned" << std::endl;
 		if (isWarmup)
 		{
-			fdtdSynth.fillBuffer(bufferLength_, inBuf, outBuf);
+			fdtdSynth.fillBuffer(1, inBuf, outBuf);
 		}
 		for (uint32_t i = 0; i != aN; ++i)
 		{
@@ -1430,6 +1431,13 @@ public:
 			cl::Buffer deviceBufferOutput;
 			openCL.createBuffer(context_, deviceBufferOutput, CL_MEM_READ_WRITE, bufferSize_);
 
+			if (isWarmup)
+			{
+				openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+			}
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
@@ -1490,6 +1498,13 @@ public:
 
 			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate * 2];
 
+			if (isWarmup)
+			{
+				openCL.enqueueKernel(commandQueue_, simpleBufferSynthesisKernel, globalWorkspace_, localWorkspace_);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+			}
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
@@ -1500,7 +1515,7 @@ public:
 				clBenchmarker_.pauseTimer(strBenchmarkName);
 
 				//Log audio for inspection if necessary//
-				for (int j = 0; j != currentBufferSize; ++j)
+				for (int j = 0; j != currentBufferLength; ++j)
 					soundBuffer[numSamplesComputed + j] = outBuf[j];
 
 				numSamplesComputed += currentBufferLength;
@@ -1555,14 +1570,15 @@ public:
 
 			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate * 2];
 
-			/*clBenchmarker_.startTimer(strBenchmarkName);
-			openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
-			openCL.waitCommandQueue(commandQueue_);
-			openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
-			openCL.waitCommandQueue(commandQueue_);
-			openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
-			openCL.waitCommandQueue(commandQueue_);
-			clBenchmarker_.pauseTimer(strBenchmarkName);*/
+			if (isWarmup)
+			{
+				openCL.writeBuffer(commandQueue_, deviceBufferInput, currentBufferSize, inBuf);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.enqueueKernel(commandQueue_, nullKernel, 1, 1);
+				openCL.waitCommandQueue(commandQueue_);
+				openCL.readBuffer(commandQueue_, deviceBufferOutput, currentBufferSize, outBuf);
+				openCL.waitCommandQueue(commandQueue_);
+			}
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
@@ -1632,6 +1648,10 @@ public:
 
 			float* soundBuffer = new float[currentBufferLength > aFrameRate ? currentBufferLength : aFrameRate*2];
 
+			if (isWarmup)
+			{
+				fdtdSynth.fillBuffer(1, inBuf, outBuf);
+			}
 			while (numSamplesComputed < aFrameRate)
 			{
 				clBenchmarker_.startTimer(strBenchmarkName);
@@ -1657,6 +1677,101 @@ public:
 		}
 	}
 
+	void cl_mappingmemory(uint32_t aN)
+	{
+		//Prepare new file for cl_mappingmemory//
+		std::string strBenchmarkFileName = "cl_mappingmemory";
+		strBenchmarkFileName.append(".csv");
+		clBenchmarker_ = Benchmarker(strBenchmarkFileName, { "Type", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" });
+
+		//Prepare host and check buffer//
+		datatype* checkBuffer = new datatype[bufferLength_];
+		datatype* hostBuffer = new datatype[bufferLength_];
+		for (size_t i = 0; i != bufferLength_; ++i)
+			hostBuffer[i] = 42.0;
+
+		//Create a host visible buffer//
+		cl::Buffer deviceBufferPinned;
+		openCL.createBuffer(context_, deviceBufferPinned, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, bufferSize_);
+
+		void* pinned;
+
+		//Benchmark mapping//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("Map");
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_WRITE, bufferSize_);
+			clBenchmarker_.pauseTimer("Map");
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+		}
+		clBenchmarker_.elapsedTimer("Map");
+
+		//Benchmark unmapping//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_WRITE, bufferSize_);
+			clBenchmarker_.startTimer("Unmap");
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+			clBenchmarker_.pauseTimer("Unmap");
+		}
+		clBenchmarker_.elapsedTimer("Unmap");
+
+		//Benchmark write//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_WRITE, bufferSize_);
+			clBenchmarker_.startTimer("write");
+			std::memcpy(pinned, hostBuffer, bufferSize_);
+			clBenchmarker_.pauseTimer("write");
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+		}
+		clBenchmarker_.elapsedTimer("write");
+
+		//Benchmark mapwrite//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("mapwrite");
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_WRITE, bufferSize_);
+			std::memcpy(pinned, hostBuffer, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+			clBenchmarker_.pauseTimer("mapwrite");
+		}
+		clBenchmarker_.elapsedTimer("mapwrite");
+
+		//Benchmark read//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_READ, bufferSize_);
+			clBenchmarker_.startTimer("read");
+			std::memcpy(checkBuffer, pinned, bufferSize_);
+			clBenchmarker_.pauseTimer("read");
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+		}
+		clBenchmarker_.elapsedTimer("read");
+
+		//Benchmark mapread//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("mapread");
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_READ, bufferSize_);
+			std::memcpy(checkBuffer, pinned, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+			clBenchmarker_.pauseTimer("mapread");
+		}
+		clBenchmarker_.elapsedTimer("mapread");
+
+		//Benchmark mapwriteread//
+		for (uint32_t i = 0; i != aN; ++i)
+		{
+			clBenchmarker_.startTimer("mapwriteread");
+			pinned = openCL.mapMemory(commandQueue_, deviceBufferPinned, CL_MAP_WRITE | CL_MAP_READ, bufferSize_);
+			std::memcpy(pinned, hostBuffer, bufferSize_);
+			std::memcpy(checkBuffer, pinned, bufferSize_);
+			openCL.unmapMemory(commandQueue_, deviceBufferPinned, pinned, bufferSize_);
+			clBenchmarker_.pauseTimer("mapwriteread");
+		}
+		clBenchmarker_.elapsedTimer("mapwriteread");
+	}
 	void setWorkspaceSize(uint32_t aGlobalSize, uint32_t aLocalSize)
 	{
 		globalWorkspace_ = cl::NDRange(aGlobalSize, 1, 1);
@@ -1699,7 +1814,7 @@ public:
 
 		if (platforms.size() != 0)
 		{
-			std::cout << "OpenCL Platform Version: " << platforms[0].getInfo<CL_PLATFORM_VERSION>() << std::endl;
+			std::cout << "OpenCL Platform Version: " << platforms[0].getInfo<CL_PLATFORM_VERSION>() << std::endl << std::endl;
 			return true;
 		}
 

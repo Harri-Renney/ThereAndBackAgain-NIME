@@ -435,7 +435,7 @@ public:
 
 			//Load excitation samples into GPU//
 			commandQueue_.enqueueWriteBuffer(excitationBuffer_, CL_TRUE, 0, excitation_.bufferSize_, inbuf);
-			//commandQueue_.finish();
+			commandQueue_.finish();
 
 			ftdtKernel_.setArg(6, sizeof(cl_mem), &excitationBuffer_);
 
@@ -453,7 +453,7 @@ public:
 			excitation_.resetIndex();
 
 			commandQueue_.enqueueReadBuffer(outputBuffer_, CL_TRUE, 0, output_.bufferSize_, output_.buffer_);
-			//commandQueue_.finish();
+			commandQueue_.finish();
 			for (int k = 0; k != frames; ++k)
 				outbuf[k] = output_[k];
 

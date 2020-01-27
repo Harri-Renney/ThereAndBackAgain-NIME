@@ -22,8 +22,8 @@ public:
 
 	GPU_Overhead_Benchmarks() {}
 	virtual ~GPU_Overhead_Benchmarks() {}
-	virtual void runGeneralBenchmarks(uint64_t aNumRepetitions) = 0;
-	virtual void runRealTimeBenchmarks(uint64_t aFrameRate) = 0;
+	virtual void runGeneralBenchmarks(uint64_t aNumRepetitions, bool isWarmup) = 0;
+	virtual void runRealTimeBenchmarks(uint64_t aFrameRate, bool isWarmup) = 0;
 };
 
 #endif

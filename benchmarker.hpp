@@ -33,6 +33,7 @@ public:
 	{
 		if (cntTimersAverage[aTimer] == 0)
 		{
+			maxDifference[aTimer] = 0.0;
 			maxDurations[aTimer] = 0.0;
 			minDurations[aTimer] = 9999999.0;
 		}
