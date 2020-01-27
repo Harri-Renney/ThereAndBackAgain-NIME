@@ -76,7 +76,7 @@ public:
 
 	void runGeneralBenchmarks(uint64_t aNumRepetitions, bool isWarmup) override
 	{
-		for (uint32_t i = 0; i != 20; ++i)
+		for (uint32_t i = 0; i != bufferSizesLength; ++i)
 		{
 			uint64_t currentBufferSize = bufferSizes[i];
 			std::string benchmarkFileName = "cl_";

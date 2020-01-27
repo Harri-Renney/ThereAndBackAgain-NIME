@@ -50,6 +50,8 @@ public:
 		aCommandQueue = cl::CommandQueue(aContext, aDevice, CL_QUEUE_PROFILING_ENABLE, &errorStatus_);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
 		if (errorStatus_)
 			std::cout << "ERROR creating command queue for device. Status code: " << errorStatus_ << std::endl;
+
+		std::cout << "\t\tDevice Name: " << aDevice.getInfo<CL_DEVICE_NAME>() << std::endl;
 	}
 
 	void createKernelProgram(cl::Context& aContext, cl::Program& aKernelProgram, const std::string aSourcePath, const char options[])
