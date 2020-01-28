@@ -19,14 +19,14 @@ int main()
 	{
 		std::cout << "OpenCL device and support detected." << std::endl;
 		std::cout << "Beginning OpenCL benchmarking" << std::endl << std::endl;
-		GPU_Overhead_Benchmarks_OpenCL clBenchmark(0, 0);
+		GPU_Overhead_Benchmarks_OpenCL clBenchmark(0, 1);
 	
-		clBenchmark.setBufferLength(44100);
+		//clBenchmark.setBufferLength(44100);
 
-		clBenchmark.cl_mappingmemory(10000);
+		//clBenchmark.cl_mappingmemory(100);
 	
-		clBenchmark.runGeneralBenchmarks(10000, true);
-		//clBenchmark.runRealTimeBenchmarks(44100, true);
+		//clBenchmark.runGeneralBenchmarks(10000, true);
+		clBenchmark.runRealTimeBenchmarks(96000, true);
 	}
 	else
 		std::cout << "OpenCL device or support not present to benchmark OpenCL." << std::endl;

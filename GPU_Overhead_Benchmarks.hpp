@@ -8,7 +8,7 @@ class GPU_Overhead_Benchmarks
 {
 private:
 protected:
-	static const size_t bufferSizesLength = 10;
+	static const size_t bufferSizesLength = 20;
 	uint64_t bufferSizes[bufferSizesLength];
 
 	typedef float datatype;

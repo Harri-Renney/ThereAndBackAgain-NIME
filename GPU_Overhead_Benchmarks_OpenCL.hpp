@@ -1848,7 +1848,7 @@ public:
 		buffer.resize(1);
 		buffer[0].resize(aAudioLength);
 		audioFile.setBitDepth(24);
-		audioFile.setSampleRate(44100);
+		audioFile.setSampleRate(96000);
 
 		for (int k = 0; k != aAudioLength; ++k)
 			buffer[0][k] = (float)aAudioBuffer[k];
