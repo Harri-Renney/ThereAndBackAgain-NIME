@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <cuda.h>
+#include <device_launch_parameters.h>
 #include <random>
 
 #include "GPU_Overhead_Benchmarks.hpp"
@@ -95,8 +96,8 @@ public:
 			cuda_complexbufferprocessing_pinned(aNumRepetitions, isWarmup);
 			cuda_simplebuffersynthesis_standard(aNumRepetitions, isWarmup);
 			cuda_simplebuffersynthesis_pinned(aNumRepetitions, isWarmup);
-			cuda_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
-			cuda_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			//cuda_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
+			//cuda_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
 			cuda_interruptedbufferprocessing_standard(aNumRepetitions, isWarmup);
 			cuda_interruptedbufferprocessing_pinned(aNumRepetitions, isWarmup);
 		}
@@ -2212,7 +2213,7 @@ public:
 		buffer.resize(1);
 		buffer[0].resize(aAudioLength);
 		audioFile.setBitDepth(24);
-		audioFile.setSampleRate(44100);
+		audioFile.setSampleRate(96000);
 
 		for (int k = 0; k != aAudioLength; ++k)
 			buffer[0][k] = (float)aAudioBuffer[k];

@@ -213,9 +213,10 @@ public:
 
 		//Get device list from context//
 		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
+		cl::Device device = devices[0];
 
 		//Create command queue for first device - Profiling enabled//
-		commandQueue_ = cl::CommandQueue(context_, devices[0], CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
+		commandQueue_ = cl::CommandQueue(context_, device, CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
 		if (errorStatus)
 			std::cout << "ERROR creating command queue for device. Status code: " << errorStatus << std::endl;
 
@@ -273,7 +274,7 @@ public:
 		//unsigned int localWorkspaceSize = localWorkSpaceX_ * localWorkSpaceY_ * sizeof(float);
 		//ftdtKernel_.setArg(12, localWorkspaceSize, NULL);	//To allocate local memory dynamically, must be given a size here.
 
-		std::cout << "\t\tDevice Name: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
+		std::cout << "\t\tDevice Name: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
 	}
 	void initOptimized()
 	{
@@ -296,16 +297,17 @@ public:
 		cl::Platform::get(&platforms);
 
 		//Create contex properties for first platform//
-		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[1])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
 
 		//Create context context using platform for GPU device//
 		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);
 
 		//Get device list from context//
 		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
+		cl::Device device = devices[0];
 
 		//Create command queue for first device - Profiling enabled//
-		commandQueue_ = cl::CommandQueue(context_, devices[0], CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
+		commandQueue_ = cl::CommandQueue(context_, device, CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
 		if (errorStatus)
 			std::cout << "ERROR creating command queue for device. Status code: " << errorStatus << std::endl;
 
@@ -365,6 +367,8 @@ public:
 
 		mapMemoryOne = commandQueue_.enqueueMapBuffer(excitationBuffer_, TRUE, CL_MAP_WRITE, 0, excitation_.bufferSize_, NULL, NULL);
 		mapMemoryTwo = commandQueue_.enqueueMapBuffer(outputBuffer_, TRUE, CL_MAP_WRITE, 0, excitation_.bufferSize_, NULL, NULL);
+
+		std::cout << "\t\tDevice Name: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
 	}
 	float step()
 	{

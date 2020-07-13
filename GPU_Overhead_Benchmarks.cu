@@ -78,6 +78,17 @@ void complex_buffer_synthesis(float* gridOne, float* gridTwo, float* gridThree, 
 	int ixyM = blockId * (blockDim.x * blockDim.y) + ((threadIdx.y-1) * blockDim.x) + threadIdx.x;
 	int ixyP = blockId * (blockDim.x * blockDim.y) + ((threadIdx.y+1) * blockDim.x) + threadIdx.x;
 
+	//@ToDo - 
+	//Alternative way found at: https://stackoverflow.com/questions/20205941/cuda-mandelbrot-set
+	//Sounds more clear?? need check//
+	//int row = blockIdx.y * blockDim.y + threadIdx.y;  // WIDTH
+	//int col = blockIdx.x * blockDim.x + threadIdx.x;  // HEIGHT
+	//int ixy = row * 64 + col;
+	//int ixMy = (row-1) * 64 + col;
+	//int ixPy = (row+1) * 64 + col;
+	//int ixyM = row * 64 + (col-1);
+	//int ixyP = row * 64 + (col+1);
+
 	//Determine each buffer in relation to time from a rotation index//
 	float* nMOne;
 	float* n;

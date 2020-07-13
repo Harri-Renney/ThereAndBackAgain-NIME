@@ -88,27 +88,27 @@ public:
 			setBufferLength(currentBufferSize);
 
 			//Run tests with setup//
-			cl_nullkernel(aNumRepetitions, isWarmup);
-			cl_cputogpu_standard(aNumRepetitions, isWarmup);
-			cl_cputogpu_pinned(aNumRepetitions, isWarmup);
-			cl_gputocpu_standard(aNumRepetitions, isWarmup);
-			cl_gputocpu_pinned(aNumRepetitions, isWarmup);
+			//cl_nullkernel(aNumRepetitions, isWarmup);
+			//cl_cputogpu_standard(aNumRepetitions, isWarmup);
+			//cl_cputogpu_pinned(aNumRepetitions, isWarmup);
+			//cl_gputocpu_standard(aNumRepetitions, isWarmup);
+			//cl_gputocpu_pinned(aNumRepetitions, isWarmup);
 			cl_cputogputocpu_standard(aNumRepetitions, isWarmup);
 			cl_cputogputocpu_pinned(aNumRepetitions, isWarmup);
-			cl_devicetransfer_standard(aNumRepetitions, isWarmup);
-			cl_devicetransfer_pinned(aNumRepetitions, isWarmup);
-			cl_devicetransferkernel_standard(aNumRepetitions, isWarmup);
-			cl_devicetransferkernel_pinned(aNumRepetitions, isWarmup);
-			cl_simplebufferprocessing_standard(aNumRepetitions, isWarmup);
-			cl_simplebufferprocessing_pinned(aNumRepetitions, isWarmup);
-			cl_complexbufferprocessing_standard(aNumRepetitions, isWarmup);
-			cl_complexbufferprocessing_pinned(aNumRepetitions, isWarmup);
-			cl_simplebuffersynthesis_standard(aNumRepetitions, isWarmup);
-			cl_simplebuffersynthesis_pinned(aNumRepetitions, isWarmup);
-			cl_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
-			cl_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
-			cl_interruptedbufferprocessing_standard(aNumRepetitions, isWarmup);
-			cl_interruptedbufferprocessing_pinned(aNumRepetitions, isWarmup);
+			//cl_devicetransfer_standard(aNumRepetitions, isWarmup);
+			//cl_devicetransfer_pinned(aNumRepetitions, isWarmup);
+			//cl_devicetransferkernel_standard(aNumRepetitions, isWarmup);
+			//cl_devicetransferkernel_pinned(aNumRepetitions, isWarmup);
+			//cl_simplebufferprocessing_standard(aNumRepetitions, isWarmup);
+			//cl_simplebufferprocessing_pinned(aNumRepetitions, isWarmup);
+			//cl_complexbufferprocessing_standard(aNumRepetitions, isWarmup);
+			//cl_complexbufferprocessing_pinned(aNumRepetitions, isWarmup);
+			//cl_simplebuffersynthesis_standard(aNumRepetitions, isWarmup);
+			//cl_simplebuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			//cl_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
+			//cl_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			//cl_interruptedbufferprocessing_standard(aNumRepetitions, isWarmup);
+			//cl_interruptedbufferprocessing_pinned(aNumRepetitions, isWarmup);
 		}
 	}
 	void runRealTimeBenchmarks(uint64_t aFrameRate, bool isWarmup) override
@@ -1848,7 +1848,7 @@ public:
 		buffer.resize(1);
 		buffer[0].resize(aAudioLength);
 		audioFile.setBitDepth(24);
-		audioFile.setSampleRate(44100);
+		audioFile.setSampleRate(96000);
 
 		for (int k = 0; k != aAudioLength; ++k)
 			buffer[0][k] = (float)aAudioBuffer[k];
