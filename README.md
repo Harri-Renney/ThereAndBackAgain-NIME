@@ -4,3 +4,11 @@
 
 * Cuda (Version:
 * OpenCL (Version:
+
+## Linker
+
+OpenCL.lib; 
+
+## Include
+
+AMD SDK

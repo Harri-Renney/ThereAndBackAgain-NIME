@@ -20,6 +20,20 @@ public:
 	{
 		init(aPlatformIdx, aDeviceIdx, aContext, aDevice, aCommandQueue);
 	}
+	static void getDevices(std::vector <cl::Platform>& aPlatforms, std::vector <std::vector<cl::Device>>& aDevices)
+	{
+		cl::Platform::get(&aPlatforms);
+		aDevices.resize(aPlatforms.size());
+
+		for (uint32_t i = 0; i != aPlatforms.size(); ++i)
+		{
+			aPlatforms[i].getDevices(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, &(aDevices[i]));
+
+			//Create context context using platform for GPU device//
+			//cl::Context context;
+			//context = cl::Context(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, contextProperties.data());
+		}
+	}
 	void init(uint32_t aPlatformIdx, uint32_t aDeviceIdx, cl::Context& aContext, cl::Device& aDevice, cl::CommandQueue& aCommandQueue)
 	{
 		/////////////////////////////////////

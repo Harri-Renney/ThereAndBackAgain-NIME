@@ -15,18 +15,26 @@ int main()
 	//Check OpenCL support and device availability//
 	bool isOpenCl = GPU_Overhead_Benchmarks_OpenCL::openclCompatible();
 
+	std::vector <cl::Platform> aPlatforms;
+	std::vector <std::vector<cl::Device>> aDevices;
+	OpenCL_Wrapper::getDevices(aPlatforms, aDevices);
+
 	if (isOpenCl)
 	{
 		std::cout << "OpenCL device and support detected." << std::endl;
 		std::cout << "Beginning OpenCL benchmarking" << std::endl << std::endl;
-		GPU_Overhead_Benchmarks_OpenCL clBenchmark(0, 1);
-	
-		//clBenchmark.setBufferLength(44100);
 
-		//clBenchmark.cl_mappingmemory(100);
-	
-		//clBenchmark.runGeneralBenchmarks(10000, true);
-		clBenchmark.runRealTimeBenchmarks(96000, true);
+		for (uint32_t i = 0; i != aPlatforms.size(); ++i)
+		{
+			GPU_Overhead_Benchmarks_OpenCL clBenchmark(1, 0);
+
+			//clBenchmark.setBufferLength(44100);
+
+			//clBenchmark.cl_mappingmemory(100);
+
+			clBenchmark.runGeneralBenchmarks(10000, true);
+			//clBenchmark.runRealTimeBenchmarks(96000, true);
+		}
 	}
 	else
 		std::cout << "OpenCL device or support not present to benchmark OpenCL." << std::endl;
