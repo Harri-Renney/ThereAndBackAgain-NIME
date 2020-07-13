@@ -2,6 +2,14 @@
 #ifndef OPENCL_WRAPPER_H
 #define OPENCL_WRAPPER_H
 
+struct OpenCL_Device
+{
+	uint32_t platform_id;
+	std::string platform_name;
+	uint32_t device_id;
+	std::string device_name;
+};
+
 class OpenCL_Wrapper
 {
 private:
@@ -220,6 +228,41 @@ public:
 			}
 			std::cout << std::endl;
 		}
+	}
+
+	static std::vector<OpenCL_Device> getOpenclDevices()
+	{
+		std::vector<OpenCL_Device> retDevices;
+		OpenCL_Device clDevice;
+
+		cl::vector<cl::Platform> platforms;
+		cl::Platform::get(&platforms);
+
+		//Print all available devices//
+		int platform_id = 0;
+		for (cl::vector<cl::Platform>::iterator it = platforms.begin(); it != platforms.end(); ++it)
+		{
+			cl::Platform platform(*it);
+
+			clDevice.platform_id = platform_id++;
+			clDevice.platform_name = platform.getInfo<CL_PLATFORM_NAME>();
+
+			cl::vector<cl::Device> devices;
+			platform.getDevices(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, &devices);
+
+			int device_id = 0;
+			for (cl::vector<cl::Device>::iterator it2 = devices.begin(); it2 != devices.end(); ++it2)
+			{
+				cl::Device device(*it2);
+
+				clDevice.device_id = device_id++;
+				clDevice.device_name = device.getInfo<CL_DEVICE_NAME>();
+
+				retDevices.push_back(clDevice);
+			}
+		}
+
+		return retDevices;
 	}
 };
 

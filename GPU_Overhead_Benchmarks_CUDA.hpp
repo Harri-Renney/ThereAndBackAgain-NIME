@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <cuda.h>
+#include <device_launch_parameters.h>
 #include <random>
 
 #include "GPU_Overhead_Benchmarks.hpp"
@@ -27,6 +28,12 @@
 //cudaEventElapsedTime(&time, start, stop);
 //cudaEventDestroy(start);
 //cudaEventDestroy(stop);
+
+struct CUDA_Device
+{
+	uint32_t device_id;
+	std::string device_name;
+};
 
 namespace CUDA_Kernels
 {
@@ -55,8 +62,10 @@ private:
 	float cudaTimeElapsed = 0.0f;
 	
 public:
-	GPU_Overhead_Benchmarks_CUDA() : cudaBenchmarker_("cudalog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
+	GPU_Overhead_Benchmarks_CUDA(uint32_t aDeviceIdx) : cudaBenchmarker_("CUDA_Logs/cudalog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
 	{
+		cudaSetDevice(aDeviceIdx);
+
 		bufferSizes[0] = 1;
 		for (size_t i = 1; i != bufferSizesLength; ++i)
 		{
@@ -69,7 +78,7 @@ public:
 		for (uint32_t i = 0; i != bufferSizesLength; ++i)
 		{
 			uint64_t currentBufferSize = bufferSizes[i];
-			std::string benchmarkFileName = "cuda_";
+			std::string benchmarkFileName = "CUDA_Logs/cuda_";
 			std::string strBufferSize = std::to_string(currentBufferSize);
 			benchmarkFileName.append("buffersize");
 			benchmarkFileName.append(strBufferSize);
@@ -95,8 +104,8 @@ public:
 			cuda_complexbufferprocessing_pinned(aNumRepetitions, isWarmup);
 			cuda_simplebuffersynthesis_standard(aNumRepetitions, isWarmup);
 			cuda_simplebuffersynthesis_pinned(aNumRepetitions, isWarmup);
-			cuda_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
-			cuda_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
+			//cuda_complexbuffersynthesis_standard(aNumRepetitions, isWarmup);
+			//cuda_complexbuffersynthesis_pinned(aNumRepetitions, isWarmup);
 			cuda_interruptedbufferprocessing_standard(aNumRepetitions, isWarmup);
 			cuda_interruptedbufferprocessing_pinned(aNumRepetitions, isWarmup);
 		}
@@ -1875,7 +1884,7 @@ public:
 	void cuda_unidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cuda_unidirectional_baseline//
-		std::string strBenchmarkFileName = "cuda_unidirectional_baseline_framerate";
+		std::string strBenchmarkFileName = "CUDA_Logs/cuda_unidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -1932,7 +1941,7 @@ public:
 	void cuda_unidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cuda_unidirectional_processing//
-		std::string strBenchmarkFileName = "cuda_unidirectional_processing_framerate";
+		std::string strBenchmarkFileName = "CUDA_Logs/cuda_unidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -2002,7 +2011,7 @@ public:
 	void cuda_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cuda_bidirectional_baseline//
-		std::string strBenchmarkFileName = "cuda_bidirectional_baseline_framerate";
+		std::string strBenchmarkFileName = "CUDA_Logs/cuda_bidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -2065,7 +2074,7 @@ public:
 	void cuda_bidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cuda_bidirectional_processing//
-		std::string strBenchmarkFileName = "cuda_bidirectional_processing_framerate";
+		std::string strBenchmarkFileName = "CUDA_Logs/cuda_bidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -2212,7 +2221,7 @@ public:
 		buffer.resize(1);
 		buffer[0].resize(aAudioLength);
 		audioFile.setBitDepth(24);
-		audioFile.setSampleRate(44100);
+		audioFile.setSampleRate(96000);
 
 		for (int k = 0; k != aAudioLength; ++k)
 			buffer[0][k] = (float)aAudioBuffer[k];
@@ -2290,10 +2299,30 @@ public:
 		return true;
 	}
 
+	static std::vector<CUDA_Device> getCudaDevices()
+	{
+		std::vector<CUDA_Device> retDevices;
+		CUDA_Device cudaDevice;
+
+		int deviceCount = 0;
+		cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+
+		for (uint32_t i = 0; i != deviceCount; ++i)
+		{
+			cudaSetDevice(i);
+			cudaDeviceProp deviceProp;
+			cudaGetDeviceProperties(&deviceProp, i);
+			cudaDevice.device_id = i;
+			cudaDevice.device_name = deviceProp.name;
+			retDevices.push_back(cudaDevice);
+		}
+		
+		return retDevices;
+	}
+
 	static void printAvailableDevices()
 	{
-		printf(
-			" CUDA Device Query (Runtime API) version (CUDART static linking)\n\n");
+		printf(" CUDA Device Query (Runtime API) version (CUDART static linking)\n\n");
 
 		int deviceCount = 0;
 		cudaError_t error_id = cudaGetDeviceCount(&deviceCount);

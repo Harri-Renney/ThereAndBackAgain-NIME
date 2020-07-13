@@ -33,6 +33,10 @@ struct OpenCL_FDTD_Arguments
 class OpenCL_FDTD : public DSP
 {
 private:
+	//Chosen platform and device//
+	uint32_t platformIdx_;
+	uint32_t deviceIdx_;
+
 	//Print Debug Information//
 	bool isDebug_;
 
@@ -141,7 +145,9 @@ public:
 		else
 			initStandard();
 	}
-	OpenCL_FDTD(OpenCL_FDTD_Arguments args, bool aIsOptimized) :
+	OpenCL_FDTD(uint32_t aPlatformIdx, uint32_t aDeviceIdx, OpenCL_FDTD_Arguments args, bool aIsOptimized) :
+		platformIdx_(aPlatformIdx),
+		deviceIdx_(aDeviceIdx),
 		modelWidth_(args.modelWidth),
 		modelHeight_(args.modelHeight),
 		gridElements_(modelWidth_*modelHeight_),
@@ -206,14 +212,14 @@ public:
 		cl::Platform::get(&platforms);
 
 		//Create contex properties for first platform//
-		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[platformIdx_])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
 
 		//Create context context using platform for GPU device//
-		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);
+		context_ = cl::Context(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, contextProperties);
 
 		//Get device list from context//
 		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
-		cl::Device device = devices[1];
+		cl::Device device = devices[deviceIdx_];
 
 		//Create command queue for first device - Profiling enabled//
 		commandQueue_ = cl::CommandQueue(context_, device, CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.
@@ -297,14 +303,14 @@ public:
 		cl::Platform::get(&platforms);
 
 		//Create contex properties for first platform//
-		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
+		cl_context_properties contextProperties[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[platformIdx_])(), 0 };	//Need to specify platform 3 for dedicated graphics - Harri Laptop.
 
 		//Create context context using platform for GPU device//
-		context_ = cl::Context(CL_DEVICE_TYPE_ALL, contextProperties);
+		context_ = cl::Context(CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_CPU, contextProperties);
 
 		//Get device list from context//
 		std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
-		cl::Device device = devices[1];
+		cl::Device device = devices[deviceIdx_];
 
 		//Create command queue for first device - Profiling enabled//
 		commandQueue_ = cl::CommandQueue(context_, device, CL_QUEUE_PROFILING_ENABLE, &errorStatus);	//Need to specify device 1[0] of platform 3[2] for dedicated graphics - Harri Laptop.

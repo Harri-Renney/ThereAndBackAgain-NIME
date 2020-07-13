@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+
+# Visual Studio
+*.vcxproj
+*.filters
+*.user
+
+# Logging
+*.wav
+*.csv
+
+# Folders
+Debug
+x64
+include

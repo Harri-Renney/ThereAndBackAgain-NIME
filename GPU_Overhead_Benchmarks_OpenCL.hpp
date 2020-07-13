@@ -33,6 +33,8 @@ class GPU_Overhead_Benchmarks_OpenCL : public GPU_Overhead_Benchmarks
 {
 private:
 	OpenCL_Wrapper openCL;
+	uint32_t currentPlatformIdx_;
+	uint32_t currentDeviceIdx_;
 	cl::NDRange globalWorkspace_;
 	cl::NDRange localWorkspace_;
 
@@ -49,8 +51,10 @@ private:
 
 	cl::Event clEvent;
 public:
-	GPU_Overhead_Benchmarks_OpenCL(uint32_t aPlatform, uint32_t aDevice) : fdtdSynth(), clBenchmarker_("openclog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
+	GPU_Overhead_Benchmarks_OpenCL(uint32_t aPlatform, uint32_t aDevice) : fdtdSynth(), clBenchmarker_("CL_Logs/openclog.csv", { "Test_Name", "Total_Time", "Average_Time", "Max_Time", "Min_Time", "Max_Difference", "Average_Difference" })
 	{
+		currentPlatformIdx_ = aPlatform;
+		currentDeviceIdx_ = aDevice;
 		openCL = OpenCL_Wrapper(aPlatform, aDevice, context_, device_, commandQueue_);
 		bufferSizes[0] = 1;
 		for (size_t i = 1; i != bufferSizesLength; ++i)
@@ -79,7 +83,7 @@ public:
 		for (uint32_t i = 0; i != bufferSizesLength; ++i)
 		{
 			uint64_t currentBufferSize = bufferSizes[i];
-			std::string benchmarkFileName = "cl_";
+			std::string benchmarkFileName = "CL_Logs/cl_";
 			std::string strBufferSize = std::to_string(currentBufferSize);
 			benchmarkFileName.append("buffersize");
 			benchmarkFileName.append(strBufferSize);
@@ -1158,7 +1162,7 @@ public:
 		args.workGroupDimensions[1] = 16;
 		args.bufferSize = bufferLength_;
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);	//@ToDo - Need to have selected device control!
+		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(currentPlatformIdx_, currentDeviceIdx_, args, false);	//@ToDo - Need to have selected device control!
 
 		//Execute and average//
 		std::cout << "Executing test: cl_complexbuffersynthesis_standard" << std::endl;
@@ -1219,7 +1223,7 @@ public:
 		args.workGroupDimensions[1] = 16;
 		args.bufferSize = bufferLength_;
 		args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, true);	//@ToDo - Need to have selected device control!
+		OpenCL_FDTD fdtdSynth = OpenCL_FDTD(currentPlatformIdx_, currentDeviceIdx_, args, true);	//@ToDo - Need to have selected device control!
 
 		//Execute and average//
 		std::cout << "Executing test: cl_complexbuffersynthesis_pinned" << std::endl;
@@ -1400,7 +1404,7 @@ public:
 	void cl_unidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cl_bidirectional_processing//
-		std::string strBenchmarkFileName = "cl_unidirectional_baseline_framerate";
+		std::string strBenchmarkFileName = "CL_Logs/cl_unidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -1460,7 +1464,7 @@ public:
 	void cl_unidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cl_bidirectional_processing//
-		std::string strBenchmarkFileName = "cl_unidirectional_processing_framerate";
+		std::string strBenchmarkFileName = "CL_Logs/cl_unidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -1535,7 +1539,7 @@ public:
 	void cl_bidirectional_baseline(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cl_bidirectional_processing//
-		std::string strBenchmarkFileName = "cl_bidirectional_baseline_framerate";
+		std::string strBenchmarkFileName = "CL_Logs/cl_bidirectional_baseline_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -1603,7 +1607,7 @@ public:
 	void cl_bidirectional_processing(size_t aFrameRate, bool isWarmup)
 	{
 		//Prepare new file for cl_bidirectional_processing//
-		std::string strBenchmarkFileName = "cl_bidirectional_processing_framerate";
+		std::string strBenchmarkFileName = "CL_Logs/cl_bidirectional_processing_framerate";
 		std::string strFrameRate = std::to_string(aFrameRate);
 		strBenchmarkFileName.append(strFrameRate);
 		strBenchmarkFileName.append(".csv");
@@ -1638,7 +1642,7 @@ public:
 			args.workGroupDimensions[1] = 16;
 			args.bufferSize = currentBufferLength;
 			args.kernelSource = "resources/kernels/fdtdGlobal.cl";
-			OpenCL_FDTD fdtdSynth = OpenCL_FDTD(args, false);	//@ToDo - Need to have selected device control!
+			OpenCL_FDTD fdtdSynth = OpenCL_FDTD(currentPlatformIdx_, currentDeviceIdx_, args, false);	//@ToDo - Need to have selected device control!
 
 			uint64_t numSamplesComputed = 0;
 			float* inBuf = new float[currentBufferLength];
